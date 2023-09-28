@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUN SHEEP RUN</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body, #root, svg {
+            height: 100%;
+            width: 100%;
+            background-color: black;
+        }
+        .entity {
+            stroke-width: 3px;
+            transition: transform .3s;
+        }
+        .sheep {
+            stroke: blue;
+            fill: blue;
+        }
+        .pointer {
+            stroke: green;
+            fill: green;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="/static/dist/app.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #!/bin/bash
 
 source ENV/Scripts/activate
-python -m autoKat.game
+python -m autokat.game
 deactivate

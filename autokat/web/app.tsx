@@ -80,7 +80,12 @@ function App() {
         heading={gameState.dog.heading}
         color="blue"
       ></Dog>
-      <circle cx={pointerX} cy={pointerY} stroke="yellow" r={4}></circle>
+      <circle cx={pointerX} cy={pointerY} stroke="yellow" r={6} fill="yellow"></circle>
+      <circle cx={0} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
+      <circle cx={0} cy={768} stroke="yellow" r={6} fill="yellow"></circle>
+      <circle cx={1024} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
+      <circle cx={1024} cy={768} stroke="yellow" r={6} fill="yellow"></circle>
+      <text x={300} y={300} stroke="yellow" fill="yellow" style={{fontSize: '20px'}}>{pointerX}, {pointerY}</text>
     </svg>
   );
 }

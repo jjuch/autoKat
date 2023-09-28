@@ -3,6 +3,8 @@ import argparse
 import cv2
 import numpy
 
+SCREEN_HEIGHT = 768
+SCREEN_WIDTH = 1024
 
 class DummyTracker:
     position = (300, 300)
@@ -76,8 +78,25 @@ class LaserTracker:
 
     @property
     def position(self) -> tuple[float, float]:
+        tl = 90, 12
+        tr = 940, 25
+        bl = 1, 665
+        br = 1020, 671
+        y_offset_top = (tl[1] + tr[1]) / 2
+        delta_y =  (bl[1] + br[1]) / 2 - y_offset_top
+        y_scale = delta_y / SCREEN_HEIGHT
         x, y = self.raw_position
-        return x / self.cam_width * 1024, y / self.cam_height * 768
+        
+        x_raw_scaled, y_raw_scaled = x / self.cam_width * SCREEN_WIDTH, y / self.cam_height * SCREEN_HEIGHT
+        ty = (y_raw_scaled - y_offset_top) / y_scale
+
+        x_offset_left = tl[0] * (1 - ty / SCREEN_HEIGHT) + bl[0] * (ty / SCREEN_HEIGHT)
+        x_offset_right = tr[0] * (1 -ty / SCREEN_HEIGHT) + br[0] * (ty / SCREEN_HEIGHT)
+        x_width = x_offset_right - x_offset_left
+        x_scale = x_width / SCREEN_WIDTH
+        tx = (x_raw_scaled - x_offset_left) / x_scale
+        return tx,ty
+
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""

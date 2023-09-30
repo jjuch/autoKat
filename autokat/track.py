@@ -34,16 +34,17 @@ class Calibration(NamedTuple):
         tl, tr, bl, br = self
         y_offset_top = (tl.y + tr.y) / 2
         delta_y =  (bl.y + br.y) / 2 - y_offset_top
-        y_scale = delta_y / SCREEN_HEIGHT
+        y_scale = delta_y / (SCREEN_HEIGHT - 1)
         x, y = coords
         ty = (y - y_offset_top) / y_scale
-        t = ty / SCREEN_HEIGHT
+        
+        t = ty / (SCREEN_HEIGHT - 1)
         x_offset_left = tl[0] * (1 - t) + bl[0] * t
         x_offset_right = tr[0] * (1 - t) + br[0] * t
         x_width = x_offset_right - x_offset_left
-        x_scale = x_width / SCREEN_WIDTH
+        x_scale = x_width / (SCREEN_WIDTH - 1)
         tx = (x - x_offset_left) / x_scale
-        return tx,ty
+        return Coords(tx,ty)
     
     @classmethod
     def from_dict(cls, data: dict[str, list[float]]) -> Self:

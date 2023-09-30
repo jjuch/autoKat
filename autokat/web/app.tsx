@@ -1,8 +1,11 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { useGameState } from "./hooks/gamestate";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAnimationFrame } from "./hooks/animation";
+
+const SCREEN_WIDTH = 1024
+const SCREEN_HEIGHT = 768
 
 function Tail({
   x,
@@ -32,9 +35,9 @@ function Tail({
 function Dog({ x, y, heading = 0, color = "green" }) {
   const transform = `translate(${x}px,${y}px) rotate(${heading}rad)`;
   const [t, setT] = useState<number>(0);
-  useAnimationFrame(({t: animationTime}) => {
+  useAnimationFrame(({ t: animationTime }) => {
     setT(animationTime);
-  })
+  });
   return (
     <g
       className="entity"
@@ -55,23 +58,51 @@ function Dog({ x, y, heading = 0, color = "green" }) {
 }
 
 function App() {
-  const gameState = useGameState();
+  const [gameState, sendCommand] = useGameState();
   const [pointerX, pointerY] = gameState.pointer_position;
   useEffect(() => {
     window.addEventListener("mousemove", (e) => {
-      gameState.setDummyPosition(e.clientX, e.clientY);
+      sendCommand({ type: "pointer", position: [e.clientX, e.clientY] });
     });
-  });
+  }, []);
+  const [calibrating, setCalibrating] = useState(false);
+  useEffect(() => {
+    window.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "c":
+          setCalibrating((c) => !c);
+          break;
+        case "q":
+          sendCommand({
+            type: "calibration",
+            corner: "top_left",
+          });
+          break;
+        case "w":
+          sendCommand({
+            type: "calibration",
+            corner: "top_right",
+          });
+          break;
+        case "a":
+          sendCommand({
+            type: "calibration",
+            corner: "bottom_left",
+          });
+          break;
+        case "s":
+          sendCommand({
+            type: "calibration",
+            corner: "bottom_right",
+          });
+          break;
+      }
+    });
+  }, []);
   return (
     <svg>
       {gameState.sheep.map((e) => (
-        <Dog
-          key={e.id}
-          x={e.x}
-          y={e.y}
-          heading={e.heading}
-          color="green"
-        ></Dog>
+        <Dog key={e.id} x={e.x} y={e.y} heading={e.heading} color="green"></Dog>
       ))}
       <Dog
         key={gameState.dog.id}
@@ -80,12 +111,75 @@ function App() {
         heading={gameState.dog.heading}
         color="blue"
       ></Dog>
-      <circle cx={pointerX} cy={pointerY} stroke="yellow" r={6} fill="yellow"></circle>
-      <circle cx={0} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
-      <circle cx={0} cy={768} stroke="yellow" r={6} fill="yellow"></circle>
-      <circle cx={1024} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
-      <circle cx={1024} cy={768} stroke="yellow" r={6} fill="yellow"></circle>
-      <text x={300} y={300} stroke="yellow" fill="yellow" style={{fontSize: '20px'}}>{pointerX}, {pointerY}</text>
+      {!calibrating ? null : (
+        <>
+          {/* pointer position dot */}
+          <circle
+            cx={pointerX}
+            cy={pointerY}
+            stroke="yellow"
+            r={6}
+            fill="yellow"
+          ></circle>
+          {/* pointer position text */}
+          <text
+            x={300}
+            y={300}
+            stroke="yellow"
+            fill="yellow"
+            style={{ fontSize: "20px" }}
+          >
+            pointer {Math.round(pointerX)}, {Math.round(pointerY)}
+          </text>
+          {/* corner dots and coordinates */}
+          <circle cx={0} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
+          <text
+            x={10}
+            y={10}
+            stroke="yellow"
+            fill="yellow"
+            style={{ fontSize: "20px", dominantBaseline: 'hanging', textAnchor: 'start' }}
+          >
+            {gameState.calibration.top_left?.map(Math.round).join(',')}
+          </text>
+          <circle cx={0} cy={SCREEN_HEIGHT - 1} stroke="yellow" r={6} fill="yellow"></circle>
+          <text
+            x={10}
+            y={SCREEN_HEIGHT - 1}
+            stroke="yellow"
+            fill="yellow"
+            style={{ fontSize: "20px", dominantBaseline: 'auto', textAnchor: 'start' }}
+          >
+            {gameState.calibration.bottom_left?.map(Math.round).join(',')}
+          </text>
+          <circle cx={SCREEN_WIDTH - 1} cy={0} stroke="yellow" r={6} fill="yellow"></circle>
+          <text
+            x={SCREEN_WIDTH - 1 - 10}
+            y={10}
+            stroke="yellow"
+            fill="yellow"
+            style={{ fontSize: "20px", dominantBaseline: 'hanging', textAnchor: 'end' }}
+          >
+            {gameState.calibration.top_right?.map(Math.round).join(',')}
+          </text>
+          <circle
+            cx={SCREEN_WIDTH - 1}
+            cy={SCREEN_HEIGHT - 1}
+            stroke="yellow"
+            r={6}
+            fill="yellow"
+          ></circle>
+          <text
+            x={SCREEN_WIDTH - 1 - 10}
+            y={SCREEN_HEIGHT - 1 - 10}
+            stroke="yellow"
+            fill="yellow"
+            style={{ fontSize: "20px", dominantBaseline: 'auto', textAnchor: 'end' }}
+          >
+            {gameState.calibration.bottom_right?.map(Math.round).join(',')}
+          </text>
+        </>
+      )}
     </svg>
   );
 }

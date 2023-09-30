@@ -1,16 +1,12 @@
+import json
 import sys
 import argparse
+from typing import NamedTuple, Self
 import cv2
 import numpy
 
 SCREEN_HEIGHT = 768
 SCREEN_WIDTH = 1024
-
-class DummyTracker:
-    position = (300, 300)
-
-    def run(self):
-        pass
 
 # original defaults
 # cam_width=640,
@@ -22,6 +18,57 @@ class DummyTracker:
 # val_min=200,
 # val_max=256,
 # display_thresholds=False,
+
+class Coords(NamedTuple):
+    x: float
+    y: float
+
+
+class Calibration(NamedTuple):
+    top_left: Coords
+    top_right: Coords
+    bottom_left: Coords
+    bottom_right: Coords
+
+    def transform(self, coords: Coords) -> Coords:
+        tl, tr, bl, br = self
+        y_offset_top = (tl.y + tr.y) / 2
+        delta_y =  (bl.y + br.y) / 2 - y_offset_top
+        y_scale = delta_y / SCREEN_HEIGHT
+        x, y = coords
+        ty = (y - y_offset_top) / y_scale
+        t = ty / SCREEN_HEIGHT
+        x_offset_left = tl[0] * (1 - t) + bl[0] * t
+        x_offset_right = tr[0] * (1 - t) + br[0] * t
+        x_width = x_offset_right - x_offset_left
+        x_scale = x_width / SCREEN_WIDTH
+        tx = (x - x_offset_left) / x_scale
+        return tx,ty
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, list[float]]) -> Self:
+        return cls(**{k: Coords(*v) for k, v in data.items()})
+
+    def to_dict(self) -> dict[str, list[float, float]]:
+        return {k: list(v) for k, v in self._asdict().items()}
+
+class DummyTracker:
+    position = (300, 300)
+    calibration = Calibration(
+        top_left=(0, 0),
+        top_right=(SCREEN_WIDTH - 1, 0),
+        bottom_left=(0, SCREEN_HEIGHT - 1),
+        bottom_right=(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
+    )
+    def run(self):
+        pass
+
+    def update_calibration(
+        self,
+        **kwargs: Coords,
+    ) -> None:
+        self.calibration = self.calibration._replace(**kwargs)
+
 class LaserTracker:
     def __init__(
         self,
@@ -34,6 +81,7 @@ class LaserTracker:
         val_min=200,
         val_max=256,
         display_thresholds=True,
+        calibration_file_path: str = 'calibration.json',
     ):
         """
         * ``cam_width`` x ``cam_height`` -- This should be the size of the
@@ -75,28 +123,33 @@ class LaserTracker:
         self.previous_position = None
         self.trail = numpy.zeros((self.cam_height, self.cam_width, 3), numpy.uint8)
         self.raw_position = (0, 0)
+        self.calibration_file_path = calibration_file_path
+        self.calibration = Calibration(
+            top_left=(0, 0),
+            top_right=(SCREEN_WIDTH - 1, 0),
+            bottom_left=(0, SCREEN_HEIGHT - 1),
+            bottom_right=(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
+        )
+        try:
+            with open(calibration_file_path) as f:
+                self.calibration = Calibration.from_dict(json.load(f))
+            print(f"Using calibration from file {calibration_file_path}: {self.calibration}")
+        except IOError:
+            print(f"Couldn't open calibration file, using default {self.calibration}")
+
+    def update_calibration(
+        self,
+        **kwargs: Coords,
+    ) -> None:
+        self.calibration = self.calibration._replace(**kwargs)
+        with open(self.calibration_file_path, 'w') as f:
+            json.dump(self.calibration.to_dict(), f)
 
     @property
-    def position(self) -> tuple[float, float]:
-        tl = 90, 12
-        tr = 940, 25
-        bl = 1, 665
-        br = 1020, 671
-        y_offset_top = (tl[1] + tr[1]) / 2
-        delta_y =  (bl[1] + br[1]) / 2 - y_offset_top
-        y_scale = delta_y / SCREEN_HEIGHT
+    def position(self) -> Coords:
         x, y = self.raw_position
-        
-        x_raw_scaled, y_raw_scaled = x / self.cam_width * SCREEN_WIDTH, y / self.cam_height * SCREEN_HEIGHT
-        ty = (y_raw_scaled - y_offset_top) / y_scale
-
-        x_offset_left = tl[0] * (1 - ty / SCREEN_HEIGHT) + bl[0] * (ty / SCREEN_HEIGHT)
-        x_offset_right = tr[0] * (1 -ty / SCREEN_HEIGHT) + br[0] * (ty / SCREEN_HEIGHT)
-        x_width = x_offset_right - x_offset_left
-        x_scale = x_width / SCREEN_WIDTH
-        tx = (x_raw_scaled - x_offset_left) / x_scale
-        return tx,ty
-
+        scaled_coords = Coords(x / self.cam_width * SCREEN_WIDTH, y / self.cam_height * SCREEN_HEIGHT)
+        return self.calibration.transform(scaled_coords)
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""

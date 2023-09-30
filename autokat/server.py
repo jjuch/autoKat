@@ -10,13 +10,13 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 
-from autokat.track import DummyTracker, LaserTracker
+from autokat.track import Coords, DummyTracker, LaserTracker
 
 task_started = False
 tick_time = 0.1
 tracker = LaserTracker()
 dummy_tracker = DummyTracker()
-# tracker = dummy_tracker
+tracker = dummy_tracker
 
 
 async def run_game():
@@ -31,7 +31,7 @@ async def run_game():
         dt = current_time - last_current_time
         total_dt = current_time - start_time
         game.tick(pointer_location=tracker.position, total_dt=total_dt)
-        await manager.broadcast(json.dumps(game.to_dict()))
+        await manager.broadcast(json.dumps({**game.to_dict(), "calibration": tracker.calibration.to_dict()}))
         current_time = datetime.datetime.now(tz=datetime.UTC)
         await asyncio.sleep(
             tick_time
@@ -84,8 +84,14 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             raw_data = await websocket.receive_text()
-            x, y = json.loads(raw_data)
-            dummy_tracker.position = (x, y)
+            print(raw_data)
+            data = json.loads(raw_data)
+            match data:
+                case {"type": "pointer", "position": [x, y]}:
+                    dummy_tracker.position = (x, y)
+                case {"type": "calibration", "corner": corner}:
+                    print("calibration match")
+                    tracker.update_calibration(**{corner: Coords(*tracker.position)})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

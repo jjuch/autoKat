@@ -34,9 +34,9 @@ class Calibration(NamedTuple):
         tl, tr, bl, br = self
         y_offset_top = (tl.y + tr.y) / 2
         delta_y =  (bl.y + br.y) / 2 - y_offset_top
-        y_scale = delta_y / (SCREEN_HEIGHT - 1)
+        y_scale = (SCREEN_HEIGHT - 1) / delta_y
         x, y = coords
-        ty = (y - y_offset_top) / y_scale
+        ty = (y - y_offset_top) * y_scale
         
         t = ty / (SCREEN_HEIGHT - 1)
         x_offset_left = tl[0] * (1 - t) + bl[0] * t
@@ -148,9 +148,7 @@ class LaserTracker:
 
     @property
     def position(self) -> Coords:
-        x, y = self.raw_position
-        scaled_coords = Coords(x / self.cam_width * SCREEN_WIDTH, y / self.cam_height * SCREEN_HEIGHT)
-        return self.calibration.transform(scaled_coords)
+        return self.calibration.transform(self.raw_position)
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""
@@ -264,7 +262,7 @@ class LaserTracker:
 
             # only proceed if the radius meets a minimum size
             if radius > 1:
-                self.raw_position = (x, y)
+                self.raw_position = (x / self.cam_width * SCREEN_WIDTH, y /self.cam_height * SCREEN_HEIGHT)
                 # draw the circle and centroid on the frame,
                 cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
                 cv2.circle(frame, center, 5, (0, 0, 255), -1)

@@ -28,12 +28,16 @@ _non_trivial_calibration = Calibration(
     bottom_right=Coords(SCREEN_WIDTH - 1 - 25, SCREEN_HEIGHT - 20),
 )
 
+
 @pytest.mark.parametrize(
-    "original_coords,transformed_coords",
-    [
-        (Coords(10, 10), Coords(0, 0))
-    ]
+    "original_coords,transformed_coords", [(Coords(10, 10), Coords(0, 0))]
 )
 def test_non_trivial_calibration(original_coords: Coords, transformed_coords: Coords):
     transformed = _non_trivial_calibration.transform(original_coords)
     assert transformed == transformed_coords
+
+
+def test_fucked_up_case():
+    calibration = Calibration.from_dict(
+        {"top_left": [215.2, 110.39999999999999], "top_right": [907.2, 70.39999999999999], "bottom_left": [134.4, 603.2], "bottom_right": [1021.6, 584.8]}
+    )

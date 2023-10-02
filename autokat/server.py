@@ -16,7 +16,7 @@ task_started = False
 tick_time = 0.1
 tracker = LaserTracker()
 dummy_tracker = DummyTracker()
-tracker = dummy_tracker
+# tracker = dummy_tracker
 
 
 async def run_game():
@@ -91,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     dummy_tracker.position = (x, y)
                 case {"type": "calibration", "corner": corner}:
                     print("calibration match")
-                    tracker.update_calibration(**{corner: Coords(*tracker.position)})
+                    tracker.update_calibration(**{corner: Coords(*tracker.raw_position)})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

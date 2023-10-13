@@ -3,6 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import datetime
 import json
+import os
 from threading import Thread
 from autokat.game import Game
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -16,12 +17,11 @@ task_started = False
 tick_time = 0.1
 tracker = LaserTracker()
 dummy_tracker = DummyTracker()
-# tracker = dummy_tracker
+if os.environ.get('POINTER', 'dummy') == 'dummy':
+    tracker = dummy_tracker
 
 
 async def run_game():
-    # global task_started
-    # task_started = True
     start_time = datetime.datetime.now(tz=datetime.UTC)
     last_current_time = start_time
     game = Game()
@@ -30,7 +30,7 @@ async def run_game():
         current_time = datetime.datetime.now(tz=datetime.UTC)
         dt = current_time - last_current_time
         total_dt = current_time - start_time
-        game.tick(pointer_location=tracker.position, total_dt=total_dt)
+        game.tick(pointer_location=tracker.position, total_dt=total_dt, dt=dt)
         await manager.broadcast(json.dumps({**game.to_dict(), "calibration": tracker.calibration.to_dict()}))
         current_time = datetime.datetime.now(tz=datetime.UTC)
         await asyncio.sleep(
@@ -84,13 +84,12 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             raw_data = await websocket.receive_text()
-            print(raw_data)
+            # print(raw_data)
             data = json.loads(raw_data)
             match data:
                 case {"type": "pointer", "position": [x, y]}:
                     dummy_tracker.position = (x, y)
                 case {"type": "calibration", "corner": corner}:
-                    print("calibration match")
                     tracker.update_calibration(**{corner: Coords(*tracker.raw_position)})
 
     except WebSocketDisconnect:

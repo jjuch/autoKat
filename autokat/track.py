@@ -81,7 +81,7 @@ class LaserTracker:
         sat_max=255,
         val_min=200,
         val_max=256,
-        display_thresholds=True,
+        display_thresholds=False,
         calibration_file_path: str = 'calibration.json',
     ):
         """

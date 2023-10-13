@@ -9,8 +9,8 @@ type Calibration = {
 
 type CalibrationCommand = {
   type: "calibration";
-  corner: keyof Calibration
-}
+  corner: keyof Calibration;
+};
 
 type PointerCommand = {
   type: "pointer";
@@ -25,17 +25,36 @@ export const useGameState = () => {
     total_dt: 0 as number,
     pointer_position: [0, 0],
     calibration: {} as Calibration,
+    maelstrom: {
+      center: [100, 100],
+      radius: 100,
+    },
+    intro_box: [[0, 0], [100, 100]],
+    state: 'intro' as 'intro' | 'playing' | 'victory',
   });
   const ws = useRef<null | WebSocket>(null);
-  const sendCommand = useCallback((command: GameCommand) => {
-    console.log('command', command);
-    ws.current?.send(JSON.stringify(command));
-  }, [ws]);
+  const sendCommand = useCallback(
+    (command: GameCommand) => {
+      console.log("command", command);
+      ws.current?.send(JSON.stringify(command));
+    },
+    [ws]
+  );
   useEffect(() => {
-    ws.current = new WebSocket(`ws://${document.location.host}/ws`);
-    ws.current.addEventListener("message", (message) => {
-      setGameState(JSON.parse(message.data))
-    });
+    function connect() {
+      ws.current = new WebSocket(`ws://${document.location.host}/ws`);
+      ws.current.addEventListener("message", (message) => {
+        setGameState(JSON.parse(message.data));
+      });
+      ws.current.addEventListener('close', (e) => {
+        setTimeout(connect, 500);
+      });
+      ws.current.addEventListener('error', (e) => {
+        ws.current?.close();
+      });
+    }
+    connect();
+   
   }, []);
   return [gameState, sendCommand] as const;
 };

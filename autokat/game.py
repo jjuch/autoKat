@@ -1,6 +1,6 @@
 import dataclasses
 import datetime
-from typing import Protocol
+from typing import Literal, Protocol
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mppatch
@@ -10,6 +10,8 @@ from autokat.animals import Flock, Dog, Sheep
 
 
 class Game:
+    state: Literal['intro', 'playing', 'victory']
+    victory_time: datetime.timedelta | None
     def __init__(self, size=(1024, 768)):
         self.size = size
         self.flock = Flock(self.size)
@@ -24,20 +26,47 @@ class Game:
         self.current_tick = 0
         self.total_dt = datetime.timedelta(seconds=0)
         self.last_pointer_position = (0, 0)
+        self.state = 'intro'
+        self.intro_box = (
+            (self.width - 200 - 50, self.height / 2 - 100),
+            (self.width - 50, self.height / 2 + 100),
+        )
+        self.maelstrom_center = 200, 500
+        self.maelstrom_radius = 100
+        self.victory_time = None
 
-    def has_won(self):
-        # Check if the game is over
-        return all(sheep.state == 'in_house' for sheep in self.flock)
+    @property
+    def width(self) -> float:
+        return self.size[0]
+    
+    @property
+    def height(self) -> float:
+        return self.size[1]
 
 
-    def tick(self, pointer_location: tuple[float, float], total_dt: datetime.timedelta):
+    def tick(self, pointer_location: tuple[float, float], total_dt: datetime.timedelta, dt: datetime.timedelta):
         self.last_pointer_position = pointer_location
         self.total_dt = total_dt
         self.dog.update_dog_location(pointer_location)
-        for sheep in self.flock:
-            sheep.calculate_new_coordinate(self.dog.current_location, self.size)
-            if sheep.in_house_bool(self.sheep_house):
-                sheep.state = 'in_house'
+        if self.state == 'intro':
+            dog_x, dog_y = self.dog.current_location
+            ((l, t), (r, b)) = self.intro_box
+            if l <= dog_x <= r and t <= dog_y <= b:
+                self.state = 'playing'
+        if self.state == 'playing':
+            for sheep in self.flock:
+                sheep.calculate_new_coordinate(
+                    self.dog.current_location,
+                    self.size,
+                    dt=dt,
+                    total_dt=total_dt,
+                    maelstrom_center=self.maelstrom_center,
+                    maelstrom_radius=self.maelstrom_radius,
+                )
+                if all(s.state == 'caught' for s in self.flock):
+                    self.victory_time = total_dt
+                    self.state = 'victory'
+
         self.current_tick += 1
 
 
@@ -88,11 +117,17 @@ class Game:
             
     def to_dict(self) -> dict:
         return {
+            "state": self.state,
             "dog": self.dog.to_dict(),
             "sheep": [sheep.to_dict() for sheep in self.flock],
             "tick": self.current_tick,
             "total_dt": self.total_dt.total_seconds(),
             "pointer_position": self.last_pointer_position,
+            "intro_box": self.intro_box,
+            "maelstrom": {
+                "center": self.maelstrom_center,
+                "radius": self.maelstrom_radius,
+            }
         }
 
 

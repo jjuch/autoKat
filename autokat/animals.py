@@ -80,6 +80,8 @@ class Sheep:
         maelstrom_center: tuple[float, float],
         maelstrom_radius: float,
     ) -> tuple[float, float]:
+        if self.state == "caught":
+            return
         new_x, new_y = x, y = self.current_location
         dog_x, dog_y = dog_location
         diff = diff_x, diff_y = x - dog_x, y - dog_y
@@ -188,9 +190,8 @@ class Sheep:
 
 
 class Dog:
-    def __init__(self):
-        self.current_location = (0.0, 0.0)
-        self.last_pointer_location = (0.0, 0.0)
+    def __init__(self, initial_location: tuple[float, float]):
+        self.current_location = initial_location
         self.approach_rate = 2
         self.current_heading = 0
         self.max_speed = 30
@@ -209,13 +210,6 @@ class Dog:
         self.current_heading = calculate_heading(
             (x, y), (new_x, new_y), self.current_heading
         )
-
-    def mouse_move(self, *args):
-        event = args[0]
-        x, y = event.xdata, event.ydata
-        print("Mouse: ", x, ", ", y)
-        if x is not None and y is not None:
-            self.last_pointer_location = (x, y)
 
     def to_dict(self) -> dict[str, Any]:
         x, y = self.current_location

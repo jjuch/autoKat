@@ -202,11 +202,11 @@ function App() {
     gameState.intro_box;
   let caughtSheep = 0;
   let totalSheep = gameState.sheep.length;
-  gameState.sheep.forEach(s => {
-    if (s.state === 'caught') {
+  gameState.sheep.forEach((s) => {
+    if (s.state === "caught") {
       caughtSheep += 1;
     }
-  })
+  });
   return (
     <>
       <svg>
@@ -247,14 +247,49 @@ function App() {
             </text>
           </>
         )}
-        {gameState.state !== "playing" ? null : (
+        {gameState.state !== "victory" ? null : (
           <g>
-            <text x={SCREEN_WIDTH / 2} y={10} fill="#34ebcf"
+            <text
+              x={SCREEN_WIDTH / 2}
+              y={10}
+              fill="#34ebcf"
+              style={{
+                fontSize: "120px",
+                dominantBaseline: "hanging",
+                textAnchor: "middle",
+              }}
+            >
+              VICTORY
+            </text>
+            <text
+              x={SCREEN_WIDTH / 2}
+              y={120}
+              fill="#34ebcf"
               style={{
                 fontSize: "40px",
                 dominantBaseline: "hanging",
                 textAnchor: "middle",
-              }}>You've caught {caughtSheep} of {totalSheep} sinesquids</text>
+              }}
+            >
+              <tspan x={SCREEN_WIDTH / 2} dy={40}>Yay, you saved Europa's alien ecosystem!</tspan>
+              <tspan x={SCREEN_WIDTH / 2} dy={40}>Starting new mission in {Math.round(gameState.seconds_to_next_game ?? 0)} seconds</tspan>
+            </text>
+          </g>
+        )}
+        {gameState.state !== "playing" ? null : (
+          <g>
+            <text
+              x={SCREEN_WIDTH / 2}
+              y={10}
+              fill="#34ebcf"
+              style={{
+                fontSize: "40px",
+                dominantBaseline: "hanging",
+                textAnchor: "middle",
+              }}
+            >
+              You've caught {caughtSheep} of {totalSheep} sinesquids
+            </text>
             <Maelstrom
               x={gameState.maelstrom.center[0]}
               y={gameState.maelstrom.center[1]}
@@ -376,7 +411,6 @@ function App() {
             </text>
           </>
         )}
-        {gameState.state}
       </svg>
       <div
         style={{
@@ -414,7 +448,10 @@ function App() {
               Befriend an alien squid by putting it on your head. Hold on tight!
             </li>
             <li>Aim its laser to guide the blue Anomacollie</li>
-            <li>Herd the green Sinesquids into the maelstrom</li>
+            <li>
+              Herd the green Sinesquids into the maelstrom to save Europa's
+              subsurface ecosystem!
+            </li>
           </ol>
         </div>
       </div>

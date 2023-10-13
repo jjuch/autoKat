@@ -31,6 +31,7 @@ export const useGameState = () => {
     },
     intro_box: [[0, 0], [100, 100]],
     state: 'intro' as 'intro' | 'playing' | 'victory',
+    seconds_to_next_game: null as number | null,
   });
   const ws = useRef<null | WebSocket>(null);
   const sendCommand = useCallback(

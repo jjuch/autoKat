@@ -15,7 +15,7 @@ class Game:
     def __init__(self, size=(1024, 768)):
         self.size = size
         self.flock = Flock(self.size)
-        self.dog = Dog()
+        self.dog = Dog((size[0] / 2, size[1] / 2))
         self.sheep_house = {
             'xy': (10, 20),
             'width': 5,
@@ -66,6 +66,10 @@ class Game:
                 if all(s.state == 'caught' for s in self.flock):
                     self.victory_time = total_dt
                     self.state = 'victory'
+        if self.state == 'victory' and total_dt >= self.victory_time + datetime.timedelta(seconds=20):
+            self.victory_time = None
+            self.state = 'intro'
+            self.flock = Flock(self.size)
 
         self.current_tick += 1
 
@@ -127,7 +131,11 @@ class Game:
             "maelstrom": {
                 "center": self.maelstrom_center,
                 "radius": self.maelstrom_radius,
-            }
+            },
+            "seconds_to_next_game": (
+                self.victory_time
+                and (self.victory_time + datetime.timedelta(seconds=20) - self.total_dt).total_seconds()
+            )
         }
 
 

@@ -37,12 +37,23 @@ def calculate_heading(
     )
     # make sure that switching from e.g 0.9*pi to -0.9*pi animates smoothly in CSS.
     # if the current heading is .9pi and the new heading is -.9pi, make the new heading 1.1pi instead
-    if abs(heading_diff := (new_heading - current_heading)) > math.pi:
-        heading_diff -= np.sign(heading_diff) * math.pi * 2
-    return current_heading + heading_diff
+    corrected_new_heading = new_heading
+    while abs(corrected_new_heading + math.pi * 2 - current_heading) < abs(
+        corrected_new_heading - current_heading
+    ):
+        corrected_new_heading += math.pi * 2
+
+    while abs(corrected_new_heading - math.pi * 2 - current_heading) < abs(
+        corrected_new_heading - current_heading
+    ):
+        corrected_new_heading -= math.pi * 2
+
+    return corrected_new_heading
+
 
 def d(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
 
 class Sheep:
     state: Literal["idle", "fleeing", "flushing", "caught"]
@@ -123,33 +134,44 @@ class Sheep:
 
         if self.state == "idle":
             random_x, random_y = self.random_target
-            if old_state != "idle" or (math.sqrt((random_x - new_x) ** 2 + (random_y - new_y) ** 2)) < 10:
+            if (
+                old_state != "idle"
+                or (math.sqrt((random_x - new_x) ** 2 + (random_y - new_y) ** 2)) < 10
+            ):
                 for _ in range(100):
                     random_distance = 180
                     random_angle = math.pi * random.uniform(0, 2)
                     self.random_target = (
-                        np.clip(new_x + math.cos(random_angle) * random_distance, 0, field_size[0] - 1),
-                        np.clip(new_y + math.sin(random_angle) * random_distance, 0, field_size[1] - 1),
+                        np.clip(
+                            new_x + math.cos(random_angle) * random_distance,
+                            0,
+                            field_size[0] - 1,
+                        ),
+                        np.clip(
+                            new_y + math.sin(random_angle) * random_distance,
+                            0,
+                            field_size[1] - 1,
+                        ),
                     )
                     # check if this takes us into the maelstrom
                     maelstrom = False
                     for step in range(1001):
                         t = step / 1000
-                        x_step = new_x  * (1 - t) + self.random_target[0] * t
-                        y_step = new_y  * (1 - t) + self.random_target[1] * t
+                        x_step = new_x * (1 - t) + self.random_target[0] * t
+                        y_step = new_y * (1 - t) + self.random_target[1] * t
                         step = x_step, y_step
                         if d(maelstrom_center, step) <= maelstrom_radius:
                             maelstrom = True
                             break
                     if not maelstrom:
                         break
-                        
+
             else:
                 new_x, new_y = move_to(self.random_target)
 
         if self.state == "caught":
             return
-        
+
         if self.state == "flushing":
             suck_duration = datetime.timedelta(seconds=5)
             suck_velocity = maelstrom_radius / suck_duration.total_seconds()
@@ -159,12 +181,12 @@ class Sheep:
             while new_angle < 0:
                 new_angle += math.pi * 2
             new_distance = max(1, current_distance - suck_velocity * dt.total_seconds())
-            self.scale = new_distance / maelstrom_radius;
+            self.scale = new_distance / maelstrom_radius
             new_x = maelstrom_center[0] + math.cos(new_angle) * new_distance
             new_y = maelstrom_center[1] + math.sin(new_angle) * new_distance
-        
+
         if d((new_x, new_y), maelstrom_center) <= 2:
-            self.state = 'caught'
+            self.state = "caught"
             return
 
         new_location = (new_x, new_y)
@@ -173,8 +195,7 @@ class Sheep:
         self.current_heading = new_heading
 
         if d(self.current_location, maelstrom_center) <= maelstrom_radius:
-            self.state = 'flushing'
-
+            self.state = "flushing"
 
     def to_dict(self) -> dict[str, Any]:
         x, y = self.current_location

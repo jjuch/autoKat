@@ -44,10 +44,13 @@ class Game:
         return self.size[1]
 
 
-    def tick(self, pointer_location: tuple[float, float], total_dt: datetime.timedelta, dt: datetime.timedelta):
+    def tick(self, pointer_location: tuple[float, float], total_dt: datetime.timedelta, dt: datetime.timedelta, time_since_last_detection: datetime.timedelta):
         self.last_pointer_position = pointer_location
         self.total_dt = total_dt
         self.dog.update_dog_location(pointer_location)
+        if time_since_last_detection >= datetime.timedelta(minutes=2):
+            self.state = 'intro'
+            self.dog.current_location = self.width / 2, self.height / 2
         if self.state == 'intro':
             dog_x, dog_y = self.dog.current_location
             ((l, t), (r, b)) = self.intro_box

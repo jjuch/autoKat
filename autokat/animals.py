@@ -114,10 +114,23 @@ class Sheep:
             )
             return _x, _y
 
+        if self.state == "flushing":
+            suck_duration = datetime.timedelta(seconds=5)
+            suck_velocity = maelstrom_radius / suck_duration.total_seconds()
+            current_distance = d(maelstrom_center, self.current_location)
+            current_angle = math.atan2(y - maelstrom_center[1], x - maelstrom_center[0])
+            new_angle = current_angle - 2 * math.pi * 1 * dt.total_seconds()
+            while new_angle < 0:
+                new_angle += math.pi * 2
+            new_distance = max(1, current_distance - suck_velocity * dt.total_seconds())
+            self.scale = new_distance / maelstrom_radius
+            new_x = maelstrom_center[0] + math.cos(new_angle) * new_distance
+            new_y = maelstrom_center[1] + math.sin(new_angle) * new_distance
+
         if self.state == "fleeing" and distance_to_dog > 200:
             self.state = "idle"
 
-        if self.state == "fleeing" or distance_to_dog <= 180:
+        if self.state == "fleeing" or (self.state != 'flushing' and distance_to_dog <= 180):
             self.state = "fleeing"
             new_x = np.clip(
                 new_x
@@ -172,18 +185,6 @@ class Sheep:
         if self.state == "caught":
             return
 
-        if self.state == "flushing":
-            suck_duration = datetime.timedelta(seconds=5)
-            suck_velocity = maelstrom_radius / suck_duration.total_seconds()
-            current_distance = d(maelstrom_center, self.current_location)
-            current_angle = math.atan2(y - maelstrom_center[1], x - maelstrom_center[0])
-            new_angle = current_angle - 2 * math.pi * 1 * dt.total_seconds()
-            while new_angle < 0:
-                new_angle += math.pi * 2
-            new_distance = max(1, current_distance - suck_velocity * dt.total_seconds())
-            self.scale = new_distance / maelstrom_radius
-            new_x = maelstrom_center[0] + math.cos(new_angle) * new_distance
-            new_y = maelstrom_center[1] + math.sin(new_angle) * new_distance
 
         if d((new_x, new_y), maelstrom_center) <= 2:
             self.state = "caught"

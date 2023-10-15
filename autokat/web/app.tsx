@@ -70,13 +70,13 @@ function Finlet({ x, length, color, t, direction = "down" }) {
           transform: `rotate3d(1, 0, 0, ${
             (Math.sin(Math.PI * t) * Math.PI) / 4
           }rad)`,
-          strokeWidth: 1,
+          strokeWidth: 2,
         }}
       ></ellipse>
     </g>
   );
 }
-function Dog({ x, y, heading, color = "blue" }) {
+function Dog({ x, y, heading, color = "#037ffc" }) {
   const transform = `translate(${x}px,${y}px) rotate(${heading}rad)`;
   const t = useAnimationTime();
   return (
@@ -84,6 +84,7 @@ function Dog({ x, y, heading, color = "blue" }) {
       className="entity"
       style={{
         transform,
+        strokeWidth: 4
       }}
     >
       <Finlet x={-45} length={14} color={color} t={t - 0.3}></Finlet>
@@ -312,7 +313,6 @@ function App() {
           x={gameState.dog.x}
           y={gameState.dog.y}
           heading={gameState.dog.heading}
-          color="blue"
         ></Dog>
         {!calibrating ? null : (
           <>
@@ -429,6 +429,7 @@ function App() {
           style={{
             width: 320,
             height: 240,
+            filter: 'grayscale(100%)'
           }}
         ></video>
         <div

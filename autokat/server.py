@@ -30,7 +30,7 @@ async def run_game():
         current_time = datetime.datetime.now(tz=datetime.UTC)
         dt = current_time - last_current_time
         total_dt = current_time - start_time
-        game.tick(pointer_location=tracker.position, total_dt=total_dt, dt=dt)
+        game.tick(pointer_location=tracker.position, total_dt=total_dt, dt=dt, time_since_last_detection=tracker.time_since_last_detection)
         await manager.broadcast(json.dumps({**game.to_dict(), "calibration": tracker.calibration.to_dict()}))
         current_time = datetime.datetime.now(tz=datetime.UTC)
         await asyncio.sleep(

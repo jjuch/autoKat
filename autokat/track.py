@@ -1,3 +1,4 @@
+import datetime
 import json
 import sys
 import argparse
@@ -61,6 +62,8 @@ class DummyTracker:
         bottom_left=(0, SCREEN_HEIGHT - 1),
         bottom_right=(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
     )
+    time_since_last_detection = datetime.timedelta(seconds=0.1)
+
     def run(self):
         pass
 
@@ -69,6 +72,7 @@ class DummyTracker:
         **kwargs: Coords,
     ) -> None:
         self.calibration = self.calibration._replace(**kwargs)
+
 
 class LaserTracker:
     def __init__(
@@ -137,6 +141,7 @@ class LaserTracker:
             print(f"Using calibration from file {calibration_file_path}: {self.calibration}")
         except IOError:
             print(f"Couldn't open calibration file, using default {self.calibration}")
+        self.last_detection_time = datetime.datetime.now()
 
     def update_calibration(
         self,
@@ -149,6 +154,10 @@ class LaserTracker:
     @property
     def position(self) -> Coords:
         return self.calibration.transform(self.raw_position)
+
+    @property
+    def time_since_last_detection(self) -> datetime.timedelta:
+        return datetime.datetime.now() - self.last_detection_time
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""
@@ -263,6 +272,7 @@ class LaserTracker:
             # only proceed if the radius meets a minimum size
             if radius > 1:
                 self.raw_position = (x / self.cam_width * SCREEN_WIDTH, y /self.cam_height * SCREEN_HEIGHT)
+                self.last_detection_time = datetime.datetime.now()
                 # draw the circle and centroid on the frame,
                 cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
                 cv2.circle(frame, center, 5, (0, 0, 255), -1)

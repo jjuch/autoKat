@@ -33,26 +33,23 @@ function Tail({
   );
 }
 
-function Sheep({ x, y, heading = 0, color = "green", scale = 1 }) {
-  const transform = `translate(${x - 15}px,${
-    y - 15
-  }px) rotate(${heading}rad) scale(${scale})`;
+function Sheep({ id, x, y, heading = 0, color = "green", scale = 1 }) {
+  heading = 0;
+  const transform = `translate(${x}px,${
+    y
+  }px)`;
   const t = useAnimationTime();
+  const hueRot = Math.PI / 2;
   return (
     <g
       className="entity"
       style={{
         transform,
+        filter: `hue-rotate(${hueRot}rad)`,
       }}
     >
-      <polygon
-        points="0,0 30,0, 30,30, 0,30"
-        style={{ stroke: color }}
-      ></polygon>
-
-      <Tail x={0} y={0} t={t} color={color}></Tail>
-      <Tail x={0} y={15} t={t} color={color}></Tail>
-      <Tail x={0} y={30} t={t} color={color}></Tail>
+      <image href="/static/christmas-gift-doodle.gif" width="60" style={{transform: `scale(${scale}) translate(-30px, -35px) rotate(${heading}rad)`}}></image>
+      {/* <circle cx={0} cy={0} r={3} fill="yellow"></circle> */}
     </g>
   );
 }
@@ -76,83 +73,23 @@ function Finlet({ x, length, color, t, direction = "down" }) {
     </g>
   );
 }
+
+
 function Dog({ x, y, heading, color = "#037ffc" }) {
-  const transform = `translate(${x}px,${y}px) rotate(${heading}rad)`;
+  const transform = `rotate(${heading}rad) scaleX(-1)`;
   const t = useAnimationTime();
   return (
-    <g
-      className="entity"
-      style={{
-        transform,
-        strokeWidth: 4
-      }}
-    >
-      <Finlet x={-45} length={14} color={color} t={t - 0.3}></Finlet>
-      <Finlet x={-30} length={16} color={color} t={t - 0.2}></Finlet>
-      <Finlet x={-15} length={18} color={color} t={t - 0.1}></Finlet>
-      <Finlet x={0} length={20} color={color} t={t + 0.0}></Finlet>
-      <Finlet x={15} length={18} color={color} t={t + 0.1}></Finlet>
-      <Finlet x={30} length={16} color={color} t={t + 0.2}></Finlet>
-      <Finlet x={45} length={14} color={color} t={t + 0.3}></Finlet>
-      <Finlet
-        x={-45}
-        length={14}
-        color={color}
-        t={t - 0.3}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={-30}
-        length={16}
-        color={color}
-        t={t - 0.2}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={-15}
-        length={18}
-        color={color}
-        t={t - 0.1}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={0}
-        length={20}
-        color={color}
-        t={t + 0.0}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={15}
-        length={18}
-        color={color}
-        t={t + 0.1}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={30}
-        length={16}
-        color={color}
-        t={t + 0.2}
-        direction="up"
-      ></Finlet>
-      <Finlet
-        x={45}
-        length={14}
-        color={color}
-        t={t + 0.3}
-        direction="up"
-      ></Finlet>
-      <ellipse
-        cx={0}
-        cy={0}
-        rx={60}
-        ry={20}
-        stroke={color}
-        style={{ strokeWidth: 2 }}
-      ></ellipse>
-      <circle cx={60} cy={10} stroke={color} r={6}></circle>
-      <circle cx={60} cy={-10} stroke={color} r={6}></circle>
+    <g className="entity" style={{ transform: `translate(${x - 50}px,${y - 80}px)`}}>
+      <g
+        className="entity"
+        style={{
+          transform,
+          transformOrigin: '50px 80px',
+          strokeWidth: 4
+        }}
+      >
+      <image href="/static/tree2.gif" width={100}></image>
+      </g>
     </g>
   );
 }
@@ -211,12 +148,18 @@ function App() {
   return (
     <>
       <svg>
+      <Dog
+          key={gameState.dog.id}
+          x={gameState.dog.x}
+          y={gameState.dog.y}
+          heading={gameState.dog.heading}
+        ></Dog>
         {gameState.state !== "intro" ? null : (
           <>
             <text
               x={(introBoxX1 + introBoxX2) / 2}
               y={introBoxY1 - 10}
-              fill="#34ebcf"
+              fill="green"
               style={{
                 fontSize: "40px",
                 dominantBaseline: "auto",
@@ -230,14 +173,14 @@ function App() {
               y={introBoxY1}
               width={introBoxX2 - introBoxX1}
               height={introBoxY2 - introBoxY1}
-              stroke="blue"
+              stroke="green"
               strokeWidth={4}
               strokeDasharray={"10"}
             ></rect>
             <text
               x={(introBoxX1 + introBoxX2) / 2}
               y={introBoxY2 + 10}
-              fill="#34ebcf"
+              fill="green"
               style={{
                 fontSize: "40px",
                 dominantBaseline: "hanging",
@@ -282,22 +225,23 @@ function App() {
             <text
               x={SCREEN_WIDTH / 2}
               y={10}
-              fill="#34ebcf"
+              fill="green"
               style={{
                 fontSize: "40px",
                 dominantBaseline: "hanging",
                 textAnchor: "middle",
               }}
             >
-              You've caught {caughtSheep} of {totalSheep} sinesquids
+              You've caught {caughtSheep} of {totalSheep} presents
             </text>
             <Maelstrom
               x={gameState.maelstrom.center[0]}
               y={gameState.maelstrom.center[1]}
-              r={gameState.maelstrom.radius}
+              // r={gameState.maelstrom.radius}
             ></Maelstrom>
             {gameState.sheep.map((e) => (
               <Sheep
+                id={e.id}
                 key={e.id}
                 x={e.x}
                 y={e.y}
@@ -308,12 +252,7 @@ function App() {
             ))}
           </g>
         )}
-        <Dog
-          key={gameState.dog.id}
-          x={gameState.dog.x}
-          y={gameState.dog.y}
-          heading={gameState.dog.heading}
-        ></Dog>
+        
         {!calibrating ? null : (
           <>
             {/* pointer position dot */}
@@ -422,39 +361,7 @@ function App() {
           color: "#34ebcf",
         }}
       >
-        <video
-          src="/static/instructions.mp4"
-          autoPlay={true}
-          loop={true}
-          style={{
-            width: 320,
-            height: 240,
-            filter: 'grayscale(100%)'
-          }}
-        ></video>
-        <div
-          style={{
-            paddingLeft: "2em",
-            paddingTop: "1em",
-            fontFamily: "impact",
-            fontSize: "30px",
-          }}
-        >
-          <ol>
-            <li>
-              Put on the tin-foil hat (it keeps Jupiter's hard radiation from
-              boiling your brain)
-            </li>
-            <li>
-              Befriend an alien squid by putting it on your head. Hold on tight!
-            </li>
-            <li>Aim its laser to guide the blue Anomacollie</li>
-            <li>
-              Herd the green Sinesquids into the maelstrom to save Europa's
-              subsurface ecosystem!
-            </li>
-          </ol>
-        </div>
+        
       </div>
     </>
   );

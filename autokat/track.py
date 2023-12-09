@@ -2,7 +2,8 @@ import datetime
 import json
 import sys
 import argparse
-from typing import NamedTuple, Self
+from typing import NamedTuple
+from typing_extensions import Self
 import cv2
 import numpy
 

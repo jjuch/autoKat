@@ -132,10 +132,10 @@ class LaserTracker:
         self.raw_position = (0, 0)
         self.calibration_file_path = calibration_file_path
         self.calibration = Calibration(
-            top_left=(0, 0),
-            top_right=(SCREEN_WIDTH - 1, 0),
-            bottom_left=(0, SCREEN_HEIGHT - 1),
-            bottom_right=(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
+            top_left=Coords(0, 0),
+            top_right=Coords(SCREEN_WIDTH - 1, 0),
+            bottom_left=Coords(0, SCREEN_HEIGHT - 1),
+            bottom_right=Coords(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
         )
         try:
             with open(calibration_file_path) as f:

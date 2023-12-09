@@ -22,17 +22,17 @@ if os.environ.get('POINTER', 'dummy') == 'dummy':
 
 
 async def run_game():
-    start_time = datetime.datetime.now(tz=datetime.UTC)
+    start_time = datetime.datetime.now(tz=datetime.timezone.utc)
     last_current_time = start_time
     game = Game()
     await asyncio.sleep(tick_time)
     while True:
-        current_time = datetime.datetime.now(tz=datetime.UTC)
+        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
         dt = current_time - last_current_time
         total_dt = current_time - start_time
         game.tick(pointer_location=tracker.position, total_dt=total_dt, dt=dt, time_since_last_detection=tracker.time_since_last_detection)
         await manager.broadcast(json.dumps({**game.to_dict(), "calibration": tracker.calibration.to_dict()}))
-        current_time = datetime.datetime.now(tz=datetime.UTC)
+        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
         await asyncio.sleep(
             tick_time
         )

@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 import sys
 import argparse
 from typing import NamedTuple
@@ -169,7 +170,7 @@ class LaserTracker:
         # Move to (xpos,ypos) on the screen
         cv2.moveWindow(name, xpos, ypos)
 
-    def setup_camera_capture(self, device_num=0):
+    def setup_camera_capture(self, device_num=os.environ.get('CAMERA') or 0):
         """Perform camera setup for the device number (default device = 0).
         Returns a reference to the camera Capture object.
 
@@ -349,7 +350,7 @@ class LaserTracker:
         # Set up window positions
         self.setup_windows()
         # Set up the camera capture
-        self.setup_camera_capture(4)
+        self.setup_camera_capture()
 
         while True:
             # 1. capture the current image

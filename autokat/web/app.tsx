@@ -166,7 +166,7 @@ function App() {
                 textAnchor: "middle",
               }}
             >
-              MOVE HERE
+              BEGIN
             </text>
             <rect
               x={introBoxX1}
@@ -187,7 +187,7 @@ function App() {
                 textAnchor: "middle",
               }}
             >
-              TO START
+              HIER
             </text>
           </>
         )}
@@ -196,27 +196,27 @@ function App() {
             <text
               x={SCREEN_WIDTH / 2}
               y={10}
-              fill="#34ebcf"
+              fill="green"
               style={{
                 fontSize: "120px",
                 dominantBaseline: "hanging",
                 textAnchor: "middle",
               }}
             >
-              VICTORY
+              HOERA!
             </text>
             <text
               x={SCREEN_WIDTH / 2}
               y={120}
-              fill="#34ebcf"
+              fill="green"
               style={{
                 fontSize: "40px",
                 dominantBaseline: "hanging",
                 textAnchor: "middle",
               }}
             >
-              <tspan x={SCREEN_WIDTH / 2} dy={40}>Yay, you saved Europa's alien ecosystem!</tspan>
-              <tspan x={SCREEN_WIDTH / 2} dy={40}>Starting new mission in {Math.round(gameState.seconds_to_next_game ?? 0)} seconds</tspan>
+              <tspan x={SCREEN_WIDTH / 2} dy={40}>Je hebt kerstmis gered!</tspan>
+              <tspan x={SCREEN_WIDTH / 2} dy={60}>Binnen {Math.round(gameState.seconds_to_next_game ?? 0)} seconden beginnen we opnieuw!</tspan>
             </text>
           </g>
         )}
@@ -232,7 +232,7 @@ function App() {
                 textAnchor: "middle",
               }}
             >
-              You've caught {caughtSheep} of {totalSheep} presents
+              Je hebt {caughtSheep} van de {totalSheep} cadeautjes gevangen!
             </text>
             <Maelstrom
               x={gameState.maelstrom.center[0]}

@@ -357,11 +357,17 @@ function App() {
           flexDirection: "row",
           position: "absolute",
           top: 0,
-          left: 0,
-          color: "#34ebcf",
+          width: '70%',
+          left: '15%',
+          color: "green",
+          fontSize: 30,
+          textAlign: 'center',
         }}
       >
-        
+        <div>
+          <span style={{fontSize: 60}}>RAMP!</span> 
+          <br />De kerstelf liet de pakjes ontsnappen. Help Jos de waakkerstboom de pakjes terug in de zak krijgen. Zet de kerstmuts op en toon Jos met de laser waar hij heen moet lopen!
+        </div>
       </div>
     </>
   );

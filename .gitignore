@@ -1,6 +1,9 @@
 # Calibration file
 calibration.json
 
+# VSCode config
+.vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

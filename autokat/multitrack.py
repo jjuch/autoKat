@@ -1,8 +1,11 @@
+from __future__ import annotations
 from dataclasses import dataclass
 import dataclasses
 import datetime
 import json
+import math
 import os
+import random
 import sys
 from typing import NamedTuple
 from typing_extensions import Self
@@ -13,18 +16,76 @@ SCREEN_HEIGHT = 768
 SCREEN_WIDTH = 1024
 
 
-class Coords(NamedTuple):
+class Vec(NamedTuple):
     x: float
     y: float
 
+    def __add__(self, other):
+        match other:
+            case Vec(x, y):
+                return Vec(self.x + x, self.y + y)
+            case float(s) | int(s):
+                return Vec(self.x + s, self.y + s)
+            case _:
+                raise ValueError(f"Can't add {other} to Vec")
+    
+    def __sub__(self, other):
+        return Vec(self.x - other.x, self.y - other.y)
+    
+    def __mul__(self, other):
+        match other:
+            case float(f) | int(f):
+                return Vec(self.x * f, self.y * f)
+            case Vec(x, y):
+                return Vec(self.x * x, self.y * y)
+            case _:
+                raise ValueError(f"Can't multiply Vec by {other}")
+    
+    def dot(self, other):
+        return self.x * other.x + self.y * other.y
+
+    def __truediv__(self, other):
+        return Vec(self.x / other, self.y / other)
+    
+    def __div__(self, other):
+        return Vec(self.x / other, self.y / other)
+    
+    @property
+    def magnitude(self):
+        return self.dot(self) ** .5
+    
+    def norm(self) -> Vec:
+        return self / self.magnitude
+
+    def truncate(self, max_magnitude) -> Vec:
+        if self.magnitude > max_magnitude:
+            return self.norm() * max_magnitude
+        return self
+    
+    def reflect(self, normal: Vec) -> Vec:
+        return self - normal * 2 * self.dot(normal)
+
+    def rotate(self, rads: float) -> Vec:
+        return Vec(
+            self.x * math.cos(rads) - self.y * math.sin(rads),
+            self.x * math.sin(rads) + self.y * math.cos(rads),
+        )
+    
+    def distance_to(self, other: Vec) -> float:
+        return (other - self).magnitude
+    
+    @classmethod
+    def normalized_random(cls) -> Vec:
+        return cls(1 - 2 * random.random(), 1 - 2 * random.random()).norm()
+
 
 class Calibration(NamedTuple):
-    top_left: Coords
-    top_right: Coords
-    bottom_left: Coords
-    bottom_right: Coords
+    top_left: Vec
+    top_right: Vec
+    bottom_left: Vec
+    bottom_right: Vec
 
-    def transform(self, coords: Coords) -> Coords:
+    def transform(self, coords: Vec) -> Vec:
         tl, tr, bl, br = self
         y_offset_top = (tl.y + tr.y) / 2
         delta_y =  (bl.y + br.y) / 2 - y_offset_top
@@ -38,11 +99,11 @@ class Calibration(NamedTuple):
         x_width = x_offset_right - x_offset_left
         x_scale = x_width / (SCREEN_WIDTH - 1)
         tx = (x - x_offset_left) / x_scale
-        return Coords(tx,ty)
+        return Vec(tx,ty)
     
     @classmethod
     def from_dict(cls, data: dict[str, list[float]]) -> Self:
-        return cls(**{k: Coords(*v) for k, v in data.items()})
+        return cls(**{k: Vec(*v) for k, v in data.items()})
 
     def to_dict(self) -> dict[str, list[float, float]]:
         return {k: list(v) for k, v in self._asdict().items()}
@@ -62,7 +123,7 @@ class DummyTracker:
 
     def update_calibration(
         self,
-        **kwargs: Coords,
+        **kwargs: Vec,
     ) -> None:
         self.calibration = self.calibration._replace(**kwargs)
 
@@ -187,8 +248,8 @@ class ProcessingConfigEditor:
 
 
 class Detection(NamedTuple):
-    camera_position: Coords
-    screen_position: Coords
+    camera_position: Vec
+    screen_position: Vec
     time: datetime.datetime
 
 class MultiLaserTracker:
@@ -229,10 +290,10 @@ class MultiLaserTracker:
 
         self.calibration_file_path = calibration_file_path
         self.calibration = Calibration(
-            top_left=Coords(0, 0),
-            top_right=Coords(SCREEN_WIDTH - 1, 0),
-            bottom_left=Coords(0, SCREEN_HEIGHT - 1),
-            bottom_right=Coords(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
+            top_left=Vec(0, 0),
+            top_right=Vec(SCREEN_WIDTH - 1, 0),
+            bottom_left=Vec(0, SCREEN_HEIGHT - 1),
+            bottom_right=Vec(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
         )
         try:
             with open(calibration_file_path) as f:
@@ -243,8 +304,8 @@ class MultiLaserTracker:
         
         self.last_detections = {
             laser_name: Detection(
-                camera_position=Coords(self.cam_width / 2, self.cam_height / 2),
-                screen_position=Coords(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+                camera_position=Vec(self.cam_width / 2, self.cam_height / 2),
+                screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
                 time=datetime.datetime.now(),
             )
             for laser_name in self.processing_config.laser_configs.keys()
@@ -252,7 +313,7 @@ class MultiLaserTracker:
 
     def update_calibration(
         self,
-        **kwargs: Coords,
+        **kwargs: Vec,
     ) -> None:
         self.calibration = self.calibration._replace(**kwargs)
         with open(self.calibration_file_path, 'w') as f:
@@ -351,6 +412,7 @@ class MultiLaserTracker:
 
             hsv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             hue, saturation, value = cv2.split(hsv_image)
+            hue = cv2.medianBlur(hue, 3)
             value_t = self.threshold(value, self.processing_config.val_min, self.processing_config.val_max)
 
             num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(value_t, 4, cv2.CV_32S)
@@ -371,17 +433,18 @@ class MultiLaserTracker:
 
                 for laser_name, laser_config in self.processing_config.laser_configs.items():
                     if laser_config.hue_min <= mean_hue <= laser_config.hue_max:
+                        self.last_detections[laser_name] = Detection(
+                            camera_position=Vec(x, y),
+                            screen_position=self.calibration.transform(Vec(x, y)),
+                            time=datetime.datetime.now(),
+                        )
                         cv2.putText(frame, f"{laser_name} {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
                         break
                 else:
                     cv2.putText(frame, f"??? {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
 
                 cv2.circle(frame, (int(x), int(y)), 10, debug_color, 2)
-                self.last_detections[laser_name] = Detection(
-                    camera_position=Coords(x, y),
-                    screen_position=self.calibration.transform(Coords(x, y)),
-                    time=datetime.datetime.now(),
-                )
+                
             
             # cv2.imshow("Hue", hue)
             # cv2.imshow("Saturation", saturation)
@@ -390,6 +453,47 @@ class MultiLaserTracker:
             cv2.imshow("RGB", frame)
             self.handle_quit()
 
+
+@dataclass
+class DummyMultiLaserTracker:
+    last_detections: dict[str, Detection] = dataclasses.field(default_factory=lambda: {
+        "red": Detection(
+            camera_position=Vec(300, 300),
+            screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            time=datetime.datetime.now(),
+        ),
+        "green": Detection(
+            camera_position=Vec(500, 500),
+            screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            time=datetime.datetime.now(),
+        ),
+    })
+    calibration: Calibration = Calibration(
+        top_left=Vec(0, 0),
+        top_right=Vec(SCREEN_WIDTH - 1, 0),
+        bottom_left=Vec(0, SCREEN_HEIGHT - 1),
+        bottom_right=Vec(SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)
+    )
+
+    @property
+    def time_since_last_detection(self) -> datetime.timedelta:
+        return max(d.time for d in self.last_detections.values()) - datetime.datetime.now()
+    
+    def detect(self, color: str, coords: Vec):
+        self.last_detections[color] = Detection(
+            camera_position=coords,
+            screen_position=coords,
+            time=datetime.datetime.now(),
+        )
+    
+    def update_calibration(
+        self,
+        **kwargs: Vec,
+    ) -> None:
+        pass
+
+    def run(self):
+        pass
 
 if __name__ == "__main__":
 

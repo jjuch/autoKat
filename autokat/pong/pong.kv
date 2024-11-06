@@ -1,0 +1,102 @@
+#:kivy 1.0.9
+#:import dp kivy.metrics.dp
+#:set debug_corner_dot_radius dp(5)
+#:set debug_corner_dot_size debug_corner_dot_radius * 2, debug_corner_dot_radius * 2
+
+<PongPillar>:
+    size: dp(50), dp(50)
+    canvas:
+        Ellipse:
+            pos: self.pos
+            size: self.size
+
+<PongLight>:
+    size: dp(20), dp(20)
+    fill: 1, 0, 0, 1
+    canvas:
+        Color:
+            rgba: self.fill
+        Ellipse:
+            pos: self.pos
+            size: self.size
+
+<PongBall>:
+    size: dp(50), dp(50) 
+    canvas:
+        Ellipse:
+            pos: self.pos
+            size: self.size          
+
+
+<PongDebugOverlay>:
+    size: self.parent.size
+    canvas:
+        Color:
+            rgba: 1, 1, 0, 1
+        
+        Ellipse:
+            pos: -debug_corner_dot_radius, -debug_corner_dot_radius
+            size: debug_corner_dot_size
+        Ellipse:
+            pos: self.width - debug_corner_dot_radius, -debug_corner_dot_radius
+            size: debug_corner_dot_size
+        Ellipse:
+            pos: -debug_corner_dot_radius, self.height - debug_corner_dot_radius
+            size: debug_corner_dot_size
+        Ellipse:
+            pos: self.width - debug_corner_dot_radius, self.height - debug_corner_dot_radius
+            size: debug_corner_dot_size
+
+<PongGame>:
+    size: dp(1024), dp(768)
+    ball: pong_ball
+    light_red: light_red
+    light_green: light_green
+    pillar: pillar
+    cone_red: [0, 0, 0, 0, 0, 0]
+    cone_green: [0, 0, 0, 0, 0, 0]
+    debug_overlay: debug_overlay
+    # cone_green: cone_green
+
+    canvas:
+        Rectangle:
+            pos: self.pos
+            size: self.size
+            source: 'autokat/pong/assets/cave.png'
+        
+        Color:
+            rgba: 1, 0, 0, .5
+        
+        Triangle:
+            points: self.cone_red
+        
+        Color:
+            rgba: 0, 1, 0, .5
+        
+        Triangle:
+            points: self.cone_green
+
+    PongDebugOverlay:
+        id: debug_overlay
+
+    PongBall:
+        id: pong_ball
+        center: self.parent.center
+        
+    
+    PongPillar:
+        id: pillar
+        center: self.parent.center
+    
+    PongLight:
+        id: light_red
+        center: self.parent.center
+        fill: 1, 0, 0, 1
+    
+    PongLight:
+        id: light_green
+        center: self.parent.center
+        fill: 0, 1, 0, 1
+
+    PongDebugOverlay:
+        id: debug_overlay

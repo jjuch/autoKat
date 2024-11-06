@@ -26,7 +26,6 @@ class Coords(NamedTuple):
     x: float
     y: float
 
-
 class Calibration(NamedTuple):
     top_left: Coords
     top_right: Coords

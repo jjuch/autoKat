@@ -15,23 +15,76 @@ type CalibrationCommand = {
 type PointerCommand = {
   type: "pointer";
   position: [number, number];
+  color: string;
 };
 export type GameCommand = CalibrationCommand | PointerCommand;
 
-export const useGameState = () => {
-  const [gameState, setGameState] = useState({
-    sheep: [] as any[],
-    dog: { x: 0, y: 0, id: 1_000_000, type: "dog", heading: 0 },
-    total_dt: 0 as number,
-    pointer_position: [0, 0],
-    calibration: {} as Calibration,
-    maelstrom: {
-      center: [100, 100],
-      radius: 100,
+export type PlayingState = {
+  name: "playing";
+  red_light: [number, number];
+  green_light: [number, number];
+  ball: {
+    position: [number, number];
+    velocity: [number, number];
+    radius: number;
+  };
+  pillar: {
+    position: [number, number];
+    radius: number;
+    forbidden_radius: number;
+  };
+  red_cone: [number, number][];
+  green_cone: [number, number][];
+}
+
+export type CountdownState = {
+  name: "countdown";
+  start_at: number;
+  time_left: number;
+  playing_state: PlayingState;
+}
+
+export type IntroState = {
+  name: "intro";
+  playing_state: PlayingState;
+}
+
+
+type Game = {
+  state: PlayingState | CountdownState | IntroState;
+  debug: {
+    red_position: [number, number];
+    green_position: [number, number];
+  };
+  calibration: Calibration;
+  time: number;
+}
+
+export const useGame = () => {
+  const [gameState, setGameState] = useState<Game>({
+    state: {
+      name: "playing",
+      red_light: [0, 0],
+      green_light: [0, 0],
+      ball: {
+        position: [0, 0],
+        velocity: [0, 0],
+        radius: 10,
+      },
+      pillar: {
+        position: [0, 0],
+        radius: 10,
+        forbidden_radius: 100,
+      },
+      red_cone: [],
+      green_cone: [],
     },
-    intro_box: [[0, 0], [100, 100]],
-    state: 'intro' as 'intro' | 'playing' | 'victory',
-    seconds_to_next_game: null as number | null,
+    debug: {
+      red_position: [0, 0],
+      green_position: [0, 0],
+    },
+    calibration: {} as Calibration,
+    time: 0
   });
   const ws = useRef<null | WebSocket>(null);
   const sendCommand = useCallback(
@@ -45,7 +98,16 @@ export const useGameState = () => {
     function connect() {
       ws.current = new WebSocket(`ws://${document.location.host}/ws`);
       ws.current.addEventListener("message", (message) => {
-        setGameState(JSON.parse(message.data));
+        const parsedMessage = JSON.parse(message.data);
+        switch (parsedMessage.type) {
+          case "state":
+            setGameState(parsedMessage);
+            break;
+          case "reload":
+            console.log("reloading");
+            document.location.reload();
+            break
+        }
       });
       ws.current.addEventListener('close', (e) => {
         setTimeout(connect, 500);

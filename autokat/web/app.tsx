@@ -1,9 +1,12 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { useGameState } from "./hooks/gamestate";
-import { useCallback, useEffect, useState } from "react";
+import { useGame } from "./hooks/gamestate";
+import { SVGProps, useCallback, useEffect, useState } from "react";
 import { useAnimationFrame, useAnimationTime } from "./hooks/animation";
 import { Maelstrom } from "./maelstrom";
+import { Playing } from "./states/playing";
+import { Countdown } from "./states/countdown";
+import { Intro } from "./states/intro";
 
 const SCREEN_WIDTH = 1024;
 const SCREEN_HEIGHT = 768;
@@ -54,26 +57,6 @@ function Sheep({ id, x, y, heading = 0, color = "green", scale = 1 }) {
   );
 }
 
-function Finlet({ x, length, color, t, direction = "down" }) {
-  return (
-    <g>
-      <ellipse
-        cx={x}
-        cy={(direction === "down" ? 1 : -1) * 34}
-        rx={8}
-        ry={length * 2}
-        stroke={color}
-        style={{
-          transform: `rotate3d(1, 0, 0, ${
-            (Math.sin(Math.PI * t) * Math.PI) / 4
-          }rad)`,
-          strokeWidth: 2,
-        }}
-      ></ellipse>
-    </g>
-  );
-}
-
 
 function Dog({ x, y, heading, color = "#037ffc" }) {
   const transform = `rotate(${heading}rad) scaleX(-1)`;
@@ -94,12 +77,13 @@ function Dog({ x, y, heading, color = "#037ffc" }) {
   );
 }
 
+
 function App() {
-  const [gameState, sendCommand] = useGameState();
-  const [pointerX, pointerY] = gameState.pointer_position;
+  const [gameState, sendCommand] = useGame();
+  const [pointerX, pointerY] = gameState.debug.red_position;
   useEffect(() => {
     window.addEventListener("mousemove", (e) => {
-      sendCommand({ type: "pointer", position: [e.clientX, e.clientY] });
+      sendCommand({ type: "pointer", position: [e.clientX, e.clientY], color: "red" });
     });
   }, []);
   const [calibrating, setCalibrating] = useState(false);
@@ -136,125 +120,20 @@ function App() {
       }
     });
   }, []);
-  const [[introBoxX1, introBoxY1], [introBoxX2, introBoxY2]] =
-    gameState.intro_box;
-  let caughtSheep = 0;
-  let totalSheep = gameState.sheep.length;
-  gameState.sheep.forEach((s) => {
-    if (s.state === "caught") {
-      caughtSheep += 1;
-    }
-  });
+  // style={{ transform: `translate(${gameState.state.red_light[0]} - 0}px,${gameState.state.red_light[1] - 0}px)`}}
   return (
     <>
-      <svg>
-      <Dog
-          key={gameState.dog.id}
-          x={gameState.dog.x}
-          y={gameState.dog.y}
-          heading={gameState.dog.heading}
-        ></Dog>
-        {gameState.state !== "intro" ? null : (
-          <>
-            <text
-              x={(introBoxX1 + introBoxX2) / 2}
-              y={introBoxY1 - 10}
-              fill="green"
-              style={{
-                fontSize: "40px",
-                dominantBaseline: "auto",
-                textAnchor: "middle",
-              }}
-            >
-              BEGIN
-            </text>
-            <rect
-              x={introBoxX1}
-              y={introBoxY1}
-              width={introBoxX2 - introBoxX1}
-              height={introBoxY2 - introBoxY1}
-              stroke="green"
-              strokeWidth={4}
-              strokeDasharray={"10"}
-            ></rect>
-            <text
-              x={(introBoxX1 + introBoxX2) / 2}
-              y={introBoxY2 + 10}
-              fill="green"
-              style={{
-                fontSize: "40px",
-                dominantBaseline: "hanging",
-                textAnchor: "middle",
-              }}
-            >
-              HIER
-            </text>
-          </>
+        {gameState.state.name === "playing" && (
+          <Playing state={gameState.state} />
         )}
-        {gameState.state !== "victory" ? null : (
-          <g>
-            <text
-              x={SCREEN_WIDTH / 2}
-              y={10}
-              fill="green"
-              style={{
-                fontSize: "120px",
-                dominantBaseline: "hanging",
-                textAnchor: "middle",
-              }}
-            >
-              HOERA!
-            </text>
-            <text
-              x={SCREEN_WIDTH / 2}
-              y={120}
-              fill="green"
-              style={{
-                fontSize: "40px",
-                dominantBaseline: "hanging",
-                textAnchor: "middle",
-              }}
-            >
-              <tspan x={SCREEN_WIDTH / 2} dy={40}>Je hebt kerstmis gered!</tspan>
-              <tspan x={SCREEN_WIDTH / 2} dy={60}>Binnen {Math.round(gameState.seconds_to_next_game ?? 0)} seconden beginnen we opnieuw!</tspan>
-            </text>
-          </g>
+        {gameState.state.name === "countdown" && (
+          <Countdown state={gameState.state} time={gameState.time}/>
         )}
-        {gameState.state !== "playing" ? null : (
-          <g>
-            <text
-              x={SCREEN_WIDTH / 2}
-              y={10}
-              fill="green"
-              style={{
-                fontSize: "40px",
-                dominantBaseline: "hanging",
-                textAnchor: "middle",
-              }}
-            >
-              Je hebt {caughtSheep} van de {totalSheep} cadeautjes gevangen!
-            </text>
-            <Maelstrom
-              x={gameState.maelstrom.center[0]}
-              y={gameState.maelstrom.center[1]}
-              // r={gameState.maelstrom.radius}
-            ></Maelstrom>
-            {gameState.sheep.map((e) => (
-              <Sheep
-                id={e.id}
-                key={e.id}
-                x={e.x}
-                y={e.y}
-                heading={e.heading}
-                color="green"
-                scale={e.scale}
-              ></Sheep>
-            ))}
-          </g>
+        {gameState.state.name === "intro" && (
+          <Intro state={gameState.state} time={gameState.time}/>
         )}
-        
         {!calibrating ? null : (
-          <>
+          <svg>
             {/* pointer position dot */}
             <circle
               cx={pointerX}
@@ -348,27 +227,8 @@ function App() {
             >
               {gameState.calibration.bottom_right?.map(Math.round).join(",")}
             </text>
-          </>
+          </svg>
         )}
-      </svg>
-      <div
-        style={{
-          display: gameState.state === "intro" ? "flex" : "none",
-          flexDirection: "row",
-          position: "absolute",
-          top: 0,
-          width: '70%',
-          left: '15%',
-          color: "green",
-          fontSize: 30,
-          textAlign: 'center',
-        }}
-      >
-        <div>
-          <span style={{fontSize: 60}}>RAMP!</span> 
-          <br />De kerstelf liet de pakjes ontsnappen. Help Jos de waakkerstboom de pakjes terug in de zak krijgen. Zet de kerstmuts op en toon Jos met de laser waar hij heen moet lopen!
-        </div>
-      </div>
     </>
   );
 }

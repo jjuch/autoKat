@@ -10,29 +10,29 @@
             src: url('static/Teko-Regular.ttf') format('truetype');
         }
 
-        @font-face {
-            font-family: "Christmas";
-            src: url('static/MountainsofChristmas-Bold.ttf') format('truetype');
-        }
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: Christmas;
+            font-family: Teko;
+        }
+        body {
+            background-color: #000;
         }
         html, body, #root, svg {
             height: 100%;
             width: 100%;
             max-width: 1024px;
             max-height: 768px;
-            background-color: black;
             overflow: hidden;
             color: green;
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         .entity {
             stroke-width: 4px;
-            transition: transform .3s;
+            transition: transform .04s;
         }
     </style>
 </head>

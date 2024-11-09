@@ -8,7 +8,7 @@ export function Intro({state, time}: { state: IntroState, time: number }) {
         <>
             <Playing state={state.playing_state}></Playing>
             <div style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)"}}>
-                <h1>LOOOOL</h1>
+                {/* <h1>LOOOOL</h1> */}
             </div>
         </>
     )

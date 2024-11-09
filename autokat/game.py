@@ -86,7 +86,7 @@ class Playing:
         default_factory=lambda: Ball(
             position=Vec(DEFAULT_SIZE[0] / 2, DEFAULT_SIZE[1] / 2),
             velocity=Vec.normalized_random() * 150,
-            radius=10,
+            radius=30,
         )
     )
     red_cone: Polygon = dataclasses.field(init=False)
@@ -284,8 +284,8 @@ class Game:
     def __init__(self, *, laser_tracker: MultiLaserTracker | DummyMultiLaserTracker, size=Vec(1024, 768)):
         self.size = size
         self.laser_tracker = laser_tracker
-        self.state = Playing(size=size)
-        # self.state = Intro()
+        # self.state = Playing(size=size)
+        self.state = Intro()
 
     def tick(self, total_dt: datetime.timedelta, dt: datetime.timedelta) -> Iterable[dict]:
         self.state = self.state.tick(

@@ -123,8 +123,8 @@ function App() {
   // style={{ transform: `translate(${gameState.state.red_light[0]} - 0}px,${gameState.state.red_light[1] - 0}px)`}}
   return (
     <>
-        {gameState.state.name === "playing" && (
-          <Playing state={gameState.state} />
+        {(gameState.state.name === "playing" || gameState.state.playing_state) && (
+          <Playing state={'playing_state' in gameState.state ? gameState.state.playing_state : gameState.state} />
         )}
         {gameState.state.name === "countdown" && (
           <Countdown state={gameState.state} time={gameState.time}/>

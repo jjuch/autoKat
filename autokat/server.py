@@ -5,6 +5,7 @@ import datetime
 import json
 import os
 from threading import Thread
+import traceback
 
 from watchfiles import awatch
 from autokat.game import Game
@@ -81,7 +82,10 @@ class ConnectionManager:
 
     async def broadcast(self, message: str):
         for connection in self.active_connections:
-            await connection.send_text(message)
+            try:
+                await connection.send_text(message)
+            except:
+                traceback.print_exc()
 
 
 manager = ConnectionManager()

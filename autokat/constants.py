@@ -1,0 +1,6 @@
+from autokat.vec import Vec
+
+
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 768
+SCREEN_SIZE = Vec(SCREEN_WIDTH, SCREEN_HEIGHT)

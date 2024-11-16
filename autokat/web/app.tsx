@@ -7,6 +7,7 @@ import { Maelstrom } from "./maelstrom";
 import { Playing } from "./states/playing";
 import { Countdown } from "./states/countdown";
 import { Intro } from "./states/intro";
+import { GameOver } from "./states/gameover";
 
 const SCREEN_WIDTH = 1024;
 const SCREEN_HEIGHT = 768;
@@ -80,18 +81,34 @@ function Dog({ x, y, heading, color = "#037ffc" }) {
 
 function App() {
   const [gameState, sendCommand] = useGame();
-  const [pointerX, pointerY] = gameState.debug.red_position;
+  const [redX, redY] = gameState.debug.red_position;
+  const [greenX, greenY] = gameState.debug.green_position;
+  const [dummyPointer, setDummyPointer] = useState("red");
+
   useEffect(() => {
     window.addEventListener("mousemove", (e) => {
-      sendCommand({ type: "pointer", position: [e.clientX, e.clientY], color: "red" });
+      const url = new URL(window.location.href);
+      sendCommand({ type: "pointer", position: [e.clientX, e.clientY], color: url.searchParams.get("color") || "red" });
     });
   }, []);
-  const [calibrating, setCalibrating] = useState(false);
+  const url = new URL(window.location.href);
+  const [calibrating, setCalibrating] = useState(url.searchParams.get("debug") === "yes");
   useEffect(() => {
     window.addEventListener("keydown", (e) => {
       switch (e.key) {
         case "c":
-          setCalibrating((c) => !c);
+          setCalibrating((c) => {
+            const url = new URL(window.location.href);
+            if (c) { url.searchParams.delete("debug"); }
+            else { url.searchParams.set("debug", "yes"); }
+            window.history.replaceState({}, "", url.toString());
+            return !c
+          });
+          break;
+        case "x":
+          const url = new URL(window.location.href);
+          url.searchParams.set("color", url.searchParams.get("color") === "green" ? "red" : "green");
+          window.history.replaceState({}, "", url.toString());
           break;
         case "q":
           sendCommand({
@@ -119,11 +136,11 @@ function App() {
           break;
       }
     });
-  }, []);
+  }, [setDummyPointer]);
   // style={{ transform: `translate(${gameState.state.red_light[0]} - 0}px,${gameState.state.red_light[1] - 0}px)`}}
   return (
     <>
-        {(gameState.state.name === "playing" || gameState.state.playing_state) && (
+        {(gameState.state.name === "playing" || "playing_state" in gameState.state) && (
           <Playing state={'playing_state' in gameState.state ? gameState.state.playing_state : gameState.state} />
         )}
         {gameState.state.name === "countdown" && (
@@ -132,12 +149,22 @@ function App() {
         {gameState.state.name === "intro" && (
           <Intro state={gameState.state} time={gameState.time}/>
         )}
+        {gameState.state.name === "game_over" && (
+          <GameOver state={gameState.state} time={gameState.time}/>
+        )}
         {!calibrating ? null : (
           <svg>
             {/* pointer position dot */}
             <circle
-              cx={pointerX}
-              cy={pointerY}
+              cx={redX}
+              cy={redY}
+              stroke="yellow"
+              r={6}
+              fill="yellow"
+            ></circle>
+            <circle
+              cx={greenX}
+              cy={greenY}
               stroke="yellow"
               r={6}
               fill="yellow"
@@ -150,7 +177,16 @@ function App() {
               fill="yellow"
               style={{ fontSize: "20px" }}
             >
-              pointer {Math.round(pointerX)}, {Math.round(pointerY)}
+              red {Math.round(redX)}, {Math.round(redY)}
+            </text>
+            <text
+              x={300}
+              y={320}
+              stroke="yellow"
+              fill="yellow"
+              style={{ fontSize: "20px" }}
+            >
+              green {Math.round(greenX)}, {Math.round(greenY)}
             </text>
             {/* corner dots and coordinates */}
             <circle cx={0} cy={0} stroke="yellow" r={6} fill="yellow"></circle>

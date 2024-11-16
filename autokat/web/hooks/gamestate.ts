@@ -19,6 +19,8 @@ type PointerCommand = {
 };
 export type GameCommand = CalibrationCommand | PointerCommand;
 
+export type Polygon = [number, number][];
+
 export type PlayingState = {
   name: "playing";
   red_light: [number, number];
@@ -33,8 +35,12 @@ export type PlayingState = {
     radius: number;
     forbidden_radius: number;
   };
-  red_cone: [number, number][];
-  green_cone: [number, number][];
+  red_cone: Polygon;
+  green_cone: Polygon;
+  team_name: string;
+  demo_mode: boolean;
+  scores: number[];
+  max_lives: number;
 }
 
 export type CountdownState = {
@@ -47,11 +53,31 @@ export type CountdownState = {
 export type IntroState = {
   name: "intro";
   playing_state: PlayingState;
+  team_name: string;
+  red_start_box: Polygon;
+  green_start_box: Polygon;
+  in_red_start_box: boolean;
+  in_green_start_box: boolean;
+}
+
+type Highscore = {
+  team_name: string;
+  score: number;
+}
+
+export type GameOverState = {
+  name: "game_over";
+  scores: number[];
+  team_name: string;
+  to_intro_at: number;
+  top_highscores: Highscore[];
+  my_highscore: Highscore;
+  my_highscore_index: number;
 }
 
 
 type Game = {
-  state: PlayingState | CountdownState | IntroState;
+  state: PlayingState | CountdownState | IntroState | GameOverState;
   debug: {
     red_position: [number, number];
     green_position: [number, number];
@@ -78,6 +104,10 @@ export const useGame = () => {
       },
       red_cone: [],
       green_cone: [],
+      scores: [0],
+      max_lives: 5,
+      team_name: "team",
+      demo_mode: true,
     },
     debug: {
       red_position: [0, 0],
@@ -104,7 +134,6 @@ export const useGame = () => {
             setGameState(parsedMessage);
             break;
           case "reload":
-            console.log("reloading");
             document.location.reload();
             break
         }

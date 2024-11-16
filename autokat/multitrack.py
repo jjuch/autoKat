@@ -12,72 +12,8 @@ from typing_extensions import Self
 import cv2
 import numpy
 
-SCREEN_HEIGHT = 768
-SCREEN_WIDTH = 1024
-
-
-class Vec(NamedTuple):
-    x: float
-    y: float
-
-    def __add__(self, other):
-        match other:
-            case Vec(x, y):
-                return Vec(self.x + x, self.y + y)
-            case float(s) | int(s):
-                return Vec(self.x + s, self.y + s)
-            case _:
-                raise ValueError(f"Can't add {other} to Vec")
-    
-    def __sub__(self, other):
-        return Vec(self.x - other.x, self.y - other.y)
-    
-    def __mul__(self, other):
-        match other:
-            case float(f) | int(f):
-                return Vec(self.x * f, self.y * f)
-            case Vec(x, y):
-                return Vec(self.x * x, self.y * y)
-            case _:
-                raise ValueError(f"Can't multiply Vec by {other}")
-    
-    def dot(self, other):
-        return self.x * other.x + self.y * other.y
-
-    def __truediv__(self, other):
-        return Vec(self.x / other, self.y / other)
-    
-    def __div__(self, other):
-        return Vec(self.x / other, self.y / other)
-    
-    @property
-    def magnitude(self):
-        return self.dot(self) ** .5
-    
-    def norm(self) -> Vec:
-        return self / self.magnitude
-
-    def truncate(self, max_magnitude) -> Vec:
-        if self.magnitude > max_magnitude:
-            return self.norm() * max_magnitude
-        return self
-    
-    def reflect(self, normal: Vec) -> Vec:
-        return self - normal * 2 * self.dot(normal)
-
-    def rotate(self, rads: float) -> Vec:
-        return Vec(
-            self.x * math.cos(rads) - self.y * math.sin(rads),
-            self.x * math.sin(rads) + self.y * math.cos(rads),
-        )
-    
-    def distance_to(self, other: Vec) -> float:
-        return (other - self).magnitude
-    
-    @classmethod
-    def normalized_random(cls) -> Vec:
-        return cls(1 - 2 * random.random(), 1 - 2 * random.random()).norm()
-
+from autokat.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from autokat.vec import Vec
 
 class Calibration(NamedTuple):
     top_left: Vec
@@ -197,6 +133,7 @@ class ProcessingConfigEditor:
                     setattr(self._processing_config.laser_configs[laser_name], field_name, value)
                 case field_name:
                     setattr(self._processing_config, field_name, value)
+            self._processing_config.save_to_file('processing_config.json')
 
         def slider_changed(field, current_value):
             def _(value):
@@ -260,25 +197,6 @@ class MultiLaserTracker:
         processing_config: ProcessingConfig|None = None,
         calibration_file_path: str = 'calibration.json',
     ):
-        """
-        * ``cam_width`` x ``cam_height`` -- This should be the size of the
-        image coming from the camera. Default is 640x480.
-
-        HSV color space Threshold values for a RED laser pointer are determined
-        by:
-
-        * ``hue_min``, ``hue_max`` -- Min/Max allowed Hue values
-        * ``sat_min``, ``sat_max`` -- Min/Max allowed Saturation values
-        * ``val_min``, ``val_max`` -- Min/Max allowed pixel values
-
-        If the dot from the laser pointer doesn't fall within these values, it
-        will be ignored.
-
-        * ``display_thresholds`` -- if True, additional windows will display
-          values for threshold image channels.
-
-        """
-
         self.cam_width = cam_width
         self.cam_height = cam_height
         self.processing_config = processing_config

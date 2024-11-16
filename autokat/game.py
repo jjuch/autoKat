@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections.abc import Iterable
 import dataclasses
 import datetime
@@ -10,9 +11,13 @@ import matplotlib.patches as mppatch
 import time
 
 from shapely import LineString, LinearRing, Point, Polygon
+from shapely.affinity import translate
 
 from autokat.animals import Flock, Dog, Sheep
+from autokat.constants import SCREEN_HEIGHT, SCREEN_WIDTH
 from autokat.multitrack import Detection, DummyMultiLaserTracker, MultiLaserTracker, Vec
+from autokat.highscores import Highscore, Highscores, generate_team_name
+
 
 @dataclasses.dataclass(kw_only=True)
 class Pillar:
@@ -69,9 +74,10 @@ def segments(curve):
 
 @dataclasses.dataclass
 class Playing:
+    team_name: str
     size: Vec = DEFAULT_SIZE
     lives: int = 3
-    score: int = 0
+    scores: list[int] = dataclasses.field(default_factory=lambda: [0])
     red_light: Vec = Vec(size[0] / 2 - 200, size[1] / 2)
     green_light: Vec = Vec(size[0] / 2 + 200, size[1] / 2)
     light_speed: float = 800
@@ -82,19 +88,18 @@ class Playing:
             forbidden_radius=100,
         )
     )
-    ball: Ball | None = dataclasses.field(
-        default_factory=lambda: Ball(
-            position=Vec(DEFAULT_SIZE[0] / 2, DEFAULT_SIZE[1] / 2),
-            velocity=Vec.normalized_random() * 150,
-            radius=30,
-        )
-    )
+    ball_speed: float = 150
+    ball_radius: float = 30
+    ball: Ball | None = None
     red_cone: Polygon = dataclasses.field(init=False)
     green_cone: Polygon = dataclasses.field(init=False)
+    max_lives: int = 3
+    demo_mode: bool = False
 
     def __post_init__(self):
         self.red_cone = self._cone(self.red_light)
         self.green_cone = self._cone(self.green_light)
+        self.ball = self._spawn_ball()
    
     @cached_property
     def boundary_shape(self) -> LinearRing:
@@ -104,6 +109,13 @@ class Playing:
     @cached_property
     def play_field_shape(self) -> Polygon:
         return self.boundary_shape.convex_hull
+
+    def _spawn_ball(self) -> Ball:
+        return Ball(
+            position=Vec(self.size.x / 2, self.size.y / 2),
+            velocity=Vec.normalized_random() * self.ball_speed,
+            radius=self.ball_radius,
+        )
 
     def _cone(self, light_position: Vec) -> Polygon:
         diff_vector = light_position - self.pillar.position
@@ -162,18 +174,41 @@ class Playing:
                             moved_ball.position = moved_ball.position - Vec(2 * x_undershoot, 0)
                         if (y_undershoot := moved_ball.position.y - moved_ball.radius) < 0:
                             moved_ball.position = moved_ball.position - Vec(0, 2 * y_undershoot)
-                        self.score += 1
+                        self.scores[-1] += 1
                         moved_ball.velocity = moved_ball.velocity + moved_ball.velocity.norm() * 50
                         break
                 else:
-                    self.ball = None
-                    return Countdown(
-                        start_at=total_dt + datetime.timedelta(seconds=5),
-                        playing_state=self,
-                    )
+                    if self.demo_mode:
+                        moved_ball = self._spawn_ball()
+                    else:
+                        self.ball = None
+                        if len(self.scores) >= self.max_lives:
+                            highscores = Highscores()
+                            my_highscore, my_highscore_index = highscores.add_score(self.team_name, max(self.scores))
+                            top_10 = highscores.top(10)
+                            return GameOver(
+                                scores=self.scores,
+                                team_name=self.team_name,
+                                to_intro_at=total_dt + datetime.timedelta(seconds=20),
+                                top_highscores=top_10,
+                                my_highscore=my_highscore,
+                                my_highscore_index=my_highscore_index,
+                            )
+                        return Countdown(
+                            start_at=total_dt + datetime.timedelta(seconds=5),
+                            playing_state=self,
+                        )
         self.ball = moved_ball
         return self
 
+    def next_round(self) -> Playing:
+        return Playing(
+            team_name=self.team_name,
+            lives=self.lives - 1,
+            red_light=self.red_light,
+            green_light=self.green_light,
+            scores=self.scores + [0],
+        )
     
     def to_dict(self) -> dict:
         return {
@@ -184,6 +219,10 @@ class Playing:
             "red_cone": list(self.red_cone.boundary.coords),
             "green_cone": list(self.green_cone.boundary.coords),
             "pillar": self.pillar,
+            "team_name": self.team_name,
+            "scores": self.scores,
+            "max_lives": self.max_lives,
+            "demo_mode": self.demo_mode,
         }
 
 
@@ -206,28 +245,63 @@ class Countdown:
             time_since_last_detection=time_since_last_detection,
         )
         if total_dt > self.start_at:
-            return Playing(
-                size=self.playing_state.size,
-                lives=self.playing_state.lives - 1,
-                red_light=self.playing_state.red_light,
-                green_light=self.playing_state.green_light,
-            )
+            return self.playing_state.next_round()
         return self
     
     def to_dict(self) -> dict:
         return {
             "name": "countdown",
             "start_at": self.start_at,
-            "playing_state": self.playing_state
+            "playing_state": self.playing_state,
         }
 
 
-DEFAULT_LIGHT_SPEED = 150
+@dataclasses.dataclass
+class GameOver:
+    scores: list[int]
+    team_name: str
+    to_intro_at: datetime.timedelta
+    top_highscores: list[Highscores]
+    my_highscore: Highscores
+    my_highscore_index: int
+
+    def tick(
+        self,
+        pointer_detections: dict[str, Detection],
+        total_dt: datetime.timedelta,
+        dt: datetime.timedelta,
+        time_since_last_detection: datetime.timedelta,
+    ):
+        # if total_dt > self.to_intro_at:
+        #     return Intro()
+        return self
+
+    def to_dict(self) -> dict:
+        return {
+            "name": "game_over",
+            "scores": self.scores,
+            "team_name": self.team_name,
+            "to_intro_at": self.to_intro_at,
+            "top_highscores": [h._asdict() for h in self.top_highscores],
+            "my_highscore": self.my_highscore._asdict(),
+            "my_highscore_index": self.my_highscore_index,
+        }
 
 
+DEMO_LIGHT_SPEED = 150
+
+_START_BOX_UNIT = SCREEN_WIDTH / 7
+START_BOX_SIDE_LENGTH = _START_BOX_UNIT * 2
+START_BOX_BASE_POLYGON = Polygon([
+    (0, 0),
+    (0, START_BOX_SIDE_LENGTH),
+    (START_BOX_SIDE_LENGTH, START_BOX_SIDE_LENGTH),
+    (START_BOX_SIDE_LENGTH, 0),
+    (0, 0)
+])
 @dataclasses.dataclass
 class Intro:
-    playing_state: Playing = dataclasses.field(default_factory=lambda: Playing(size=DEFAULT_SIZE, light_speed=DEFAULT_LIGHT_SPEED))
+    playing_state: Playing = dataclasses.field(default_factory=lambda: Playing(team_name='', light_speed=DEMO_LIGHT_SPEED, demo_mode=True))
     pointer_detections: dict[str, Detection] = dataclasses.field(default_factory=lambda: {
         "red": Detection(
             screen_position=Vec(1024 / 2 - 300, 768 / 2),
@@ -240,7 +314,25 @@ class Intro:
             time=datetime.timedelta(0)
         ),
     })
-    light_speed: float = DEFAULT_LIGHT_SPEED
+    light_speed: float = DEMO_LIGHT_SPEED
+    team_name: str = dataclasses.field(default_factory=generate_team_name)
+    red_start_box: Polygon = dataclasses.field(
+        default_factory=lambda: translate(
+            START_BOX_BASE_POLYGON,
+            xoff=_START_BOX_UNIT,
+            yoff=(SCREEN_HEIGHT - START_BOX_SIDE_LENGTH) / 2
+        )
+    )
+    green_start_box: Polygon = dataclasses.field(
+        default_factory=lambda: translate(
+            START_BOX_BASE_POLYGON,
+            xoff=SCREEN_WIDTH - _START_BOX_UNIT * 3,
+            yoff=(SCREEN_HEIGHT - START_BOX_SIDE_LENGTH) / 2
+        )
+    )
+    in_red_start_box: bool = False
+    in_green_start_box: bool = False
+    tick_count: int = 0
 
     def tick(
         self,
@@ -267,9 +359,20 @@ class Intro:
             dt=dt,
             time_since_last_detection=0,
         )
-        if not isinstance(self.playing_state, Playing):
-            self.playing_state = Playing(light_speed=self.light_speed)
 
+
+        self.in_red_start_box = self.red_start_box.contains(Point(pointer_detections["red"].screen_position))
+        self.in_green_start_box = self.green_start_box.contains(Point(pointer_detections["green"].screen_position))
+        self.tick_count += 1
+        if not (self.in_red_start_box and self.in_green_start_box) and self.tick_count % 4 == 0:
+            self.team_name = generate_team_name()
+
+        if self.in_red_start_box and self.in_green_start_box:
+            return Playing(
+                team_name=self.team_name,
+                red_light=self.playing_state.red_light,
+                green_light=self.playing_state.green_light,
+            )
 
         return self
 
@@ -277,6 +380,11 @@ class Intro:
         return {
             "name": "intro",
             "playing_state": self.playing_state,
+            "team_name": self.team_name,
+            "red_start_box": list(self.red_start_box.boundary.coords),
+            "green_start_box": list(self.green_start_box.boundary.coords),
+            "in_red_start_box": self.in_red_start_box,
+            "in_green_start_box": self.in_green_start_box,
         }
 class Game:
     state: Playing | Countdown | Intro
@@ -286,6 +394,14 @@ class Game:
         self.laser_tracker = laser_tracker
         # self.state = Playing(size=size)
         self.state = Intro()
+        # self.state = GameOver(
+        #     scores=[1, 2, 3],
+        #     team_name="team1",
+        #     to_intro_at=datetime.timedelta(seconds=100000000),
+        #     top_highscores=Highscores().top(10),
+        #     my_highscore=Highscore(team_name="team1", score=100),
+        #     my_highscore_index=3,
+        # )
 
     def tick(self, total_dt: datetime.timedelta, dt: datetime.timedelta) -> Iterable[dict]:
         self.state = self.state.tick(

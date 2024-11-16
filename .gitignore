@@ -1,6 +1,9 @@
 # Calibration file
 calibration.json
 
+# Highscores file
+highscores.json
+
 # VSCode config
 .vscode
 

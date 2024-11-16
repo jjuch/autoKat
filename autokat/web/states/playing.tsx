@@ -47,6 +47,7 @@ export function Playing({state}: { state: PlayingState}) {
         glsl.setUniform('u_ballRadius', state.ball ? state.ball.radius : -1);
     }, [state, glsl])
 
+    const allScores = [...state.scores, ...Array(state.max_lives - state.scores.length).fill(null)];
     return (
         <>
         <canvas width="1024" height="768" ref={canvasRef} data-textures="static/cave.png"></canvas>
@@ -63,6 +64,11 @@ export function Playing({state}: { state: PlayingState}) {
         // </svg> */}
         <img src="static/plato.png" style={{width: 100, height: 100, position: "absolute", left: `${state.red_light[0]}px`, top: `${state.red_light[1]}px`, transform: "translate(-50%, -50%)", objectFit: 'contain'}} />
         <img src="static/socrates.png" style={{width: 100, height: 100, position: "absolute", left: `${state.green_light[0]}px`, top: `${state.green_light[1]}px`, transform: "translate(-50%, -50%)", objectFit: 'contain'}} />
+        <div style={{ position: 'absolute', bottom: 20, width: '100%', fontSize: 34, display: state.demo_mode ? 'hidden' : 'block', textAlign: 'center'}}>
+            {allScores.map((score, i) => (
+                <><span key={i}>{score === null ? "--" : score}</span>{i < allScores.length - 1 ? ' / ' : ''}</>
+            ))}
+        </div>
         </>
     )
 }

@@ -192,8 +192,15 @@ vec2 iSphere2(in vec3 ro, in vec3 rd)
 vec4 plasma(vec2 p)
 {	
 	//camera
+    vec2 um = (u_redLight + u_greenLight) / 2.0 / u_resolution.xy-.5;
+    
+	//camera
 	vec3 ro = vec3(0.,0.,5.);
     vec3 rd = normalize(vec3(p*.7,-1.5));
+    mat2 mx = mm2(plasma_time*.4+um.x*6.);
+    mat2 my = mm2(plasma_time*0.3+um.y*6.); 
+    ro.xz *= mx;rd.xz *= mx;
+    ro.xy *= my;rd.xy *= my;
     vec3 bro = ro;
     vec3 brd = rd;
 	
@@ -360,6 +367,8 @@ bool pointInTriangle (vec2 pt, vec2 v1, vec2 v2, vec2 v3) {
     return !(has_neg && has_pos);
 }
 
+const vec4 fuschia = vec4(252.0, 3.0, 236.0, 255.0) / 255.0;
+
 void main() {
     vec2 st = gl_FragCoord.xy / u_resolution.xy;
 
@@ -382,56 +391,31 @@ void main() {
     }
     // }
     vec4 multiplier = vec4(clamp(multiplierRgb.rgb, vec3(0.0), vec3(1.0)), 1.0);
-    // bool inTriangle = pointInTriangle(gl_FragCoord.xy, flipY(u_redCone1), flipY(u_redCone2), flipY(u_redCone3));
-    // vec4 multiplier = inTriangle ? green : black;
-    
-    if (u_ballRadius > 0.0 && distance(gl_FragCoord.xy, flipY(u_ballPosition)) <= u_ballRadius) {
-        vec2 tl = flipY(u_ballPosition) - vec2(u_ballRadius, u_ballRadius);
-        vec2 br = flipY(u_ballPosition) + vec2(u_ballRadius, u_ballRadius);
-        vec2 uv = (gl_FragCoord.xy - tl) / (br - tl);
-        int frame = int(mod(u_time * 10.0, 12.0));
-        vec4 disco;
-        // if (frame == 0) {
-        //     disco = texture2D(u_disco0, uv);
-        // } else if (frame == 1) {
-        //     disco = texture2D(u_disco1, uv);
-        // } else if (frame == 2) {
-        //     disco = texture2D(u_disco2, uv);
-        // } else if (frame == 3) {
-        //     disco = texture2D(u_disco3, uv);
-        // } else if (frame == 4) {
-        //     disco = texture2D(u_disco4, uv);
-        // } else if (frame == 5) {
-        //     disco = texture2D(u_disco5, uv);
-        // } else if (frame == 6) {
-        //     disco = texture2D(u_disco6, uv);
-        // } else if (frame == 7) {
-        //     disco = texture2D(u_disco7, uv);
-        // } else if (frame == 8) {
-        //     disco = texture2D(u_disco8, uv);
-        // } else if (frame == 9) {
-        //     disco = texture2D(u_disco9, uv);
-        // } else if (frame == 10) {
-        //     disco = texture2D(u_disco10, uv);
-        // } else if (frame == 11) {
-        //     disco = texture2D(u_disco11, uv);
-        // }
-        // gl_FragColor = disco * (vec4(1.0) - (multiplier == vec4(1.0) ? vec4(0.0) : multiplier));
-        gl_FragColor = plasma((gl_FragCoord.xy - flipY(u_ballPosition)) / u_ballRadius / 2.0);
-    } else {
-        vec4 caveColor = texture2D(u_cave, st);
-        vec2 edgeDistanceVector = u_resolution.xy * 0.5 - abs(gl_FragCoord.xy - u_resolution.xy * 0.5);
-        float edgeDistance = min(edgeDistanceVector.x, edgeDistanceVector.y);
-        float edgeFactor = 1.0 - smoothstep(0.0, 10.0, edgeDistance);
-        vec4 discoColor = disco(
-            (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_ballRadius,
-            u_time * .8,
-            u_forbiddenRadius / u_ballRadius
-        );
-        vec4 color = mix(caveColor* multiplier + multiplier * 0.15, multiplier, edgeFactor * max(inRedF, inGreenF));
-        // color += discoColor * discoColor.a;
-        color = mix(color, discoColor, discoColor.a);
-        gl_FragColor = color;
+
+    vec4 caveColor = texture2D(u_cave, st);
+    vec2 edgeDistanceVector = u_resolution.xy * 0.5 - abs(gl_FragCoord.xy - u_resolution.xy * 0.5);
+    float edgeDistance = min(edgeDistanceVector.x, edgeDistanceVector.y);
+    float edgeFactor = 1.0 - smoothstep(0.0, 10.0, edgeDistance);
+    vec4 discoColor = disco(
+        (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_ballRadius,
+        u_time * .8,
+        u_forbiddenRadius / u_ballRadius
+    );
+    vec4 color = mix(caveColor* multiplier + multiplier * 0.15, multiplier, edgeFactor * max(inRedF, inGreenF));
+    // color += discoColor * discoColor.a;
+    color = mix(color, discoColor, discoColor.a);
+
+    float ballDistance = distance(gl_FragCoord.xy, flipY(u_ballPosition));
+    if (u_ballRadius > 0.0 && ballDistance <= u_ballRadius * 1.1) {
+        vec2 relativePoint = (gl_FragCoord.xy - flipY(u_ballPosition)) / u_ballRadius;
+        vec4 plasmaColor = plasma(relativePoint/ 2.0);
+        float ballAngle = atan(relativePoint.y, relativePoint.x);
+        vec4 border = mix(
+            color,
+            fuschia,
+            (1.0 - step(1.05 + sin(u_time * 10.0 + ballAngle * 6.0) * sin(u_time * 5.0 - ballAngle * 4.0) / 20.0, ballDistance / u_ballRadius))) * 0.8;
+        color = mix(plasmaColor, border, smoothstep(0.9, 1.0, ballDistance / u_ballRadius));
     }
-    
+
+    gl_FragColor = color;
 }

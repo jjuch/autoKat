@@ -73,6 +73,7 @@ export type GameOverState = {
   top_highscores: Highscore[];
   my_highscore: Highscore;
   my_highscore_index: number;
+  skip_to_intro_box: Polygon;
 }
 
 

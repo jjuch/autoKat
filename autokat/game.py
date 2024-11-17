@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 from functools import cached_property, lru_cache
 import math
-from typing import Literal, Protocol
+from typing import Literal, Protocol, Self
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mppatch
@@ -76,7 +76,6 @@ def segments(curve):
 class Playing:
     team_name: str
     size: Vec = DEFAULT_SIZE
-    lives: int = 3
     scores: list[int] = dataclasses.field(default_factory=lambda: [0])
     red_light: Vec = Vec(size[0] / 2 - 200, size[1] / 2)
     green_light: Vec = Vec(size[0] / 2 + 200, size[1] / 2)
@@ -99,7 +98,6 @@ class Playing:
     def __post_init__(self):
         self.red_cone = self._cone(self.red_light)
         self.green_cone = self._cone(self.green_light)
-        self.ball = self._spawn_ball()
    
     @cached_property
     def boundary_shape(self) -> LinearRing:
@@ -110,12 +108,13 @@ class Playing:
     def play_field_shape(self) -> Polygon:
         return self.boundary_shape.convex_hull
 
-    def _spawn_ball(self) -> Ball:
-        return Ball(
+    def spawn_ball(self) -> Self:
+        ball = Ball(
             position=Vec(self.size.x / 2, self.size.y / 2),
             velocity=Vec.normalized_random() * self.ball_speed,
             radius=self.ball_radius,
         )
+        return dataclasses.replace(self, ball=ball)
 
     def _cone(self, light_position: Vec) -> Polygon:
         diff_vector = light_position - self.pillar.position
@@ -175,11 +174,11 @@ class Playing:
                         if (y_undershoot := moved_ball.position.y - moved_ball.radius) < 0:
                             moved_ball.position = moved_ball.position - Vec(0, 2 * y_undershoot)
                         self.scores[-1] += 1
-                        moved_ball.velocity = moved_ball.velocity + moved_ball.velocity.norm() * 50
+                        moved_ball.velocity = moved_ball.velocity + moved_ball.velocity.norm() * 20
                         break
                 else:
                     if self.demo_mode:
-                        moved_ball = self._spawn_ball()
+                        return self.spawn_ball()
                     else:
                         self.ball = None
                         if len(self.scores) >= self.max_lives:
@@ -196,7 +195,7 @@ class Playing:
                             )
                         return Countdown(
                             start_at=total_dt + datetime.timedelta(seconds=5),
-                            playing_state=self,
+                            playing_state=self.next_round(),
                         )
         self.ball = moved_ball
         return self
@@ -204,7 +203,6 @@ class Playing:
     def next_round(self) -> Playing:
         return Playing(
             team_name=self.team_name,
-            lives=self.lives - 1,
             red_light=self.red_light,
             green_light=self.green_light,
             scores=self.scores + [0],
@@ -245,7 +243,7 @@ class Countdown:
             time_since_last_detection=time_since_last_detection,
         )
         if total_dt > self.start_at:
-            return self.playing_state.next_round()
+            return self.playing_state.spawn_ball()
         return self
     
     def to_dict(self) -> dict:
@@ -255,6 +253,15 @@ class Countdown:
             "playing_state": self.playing_state,
         }
 
+GAME_OVER_BOX_HEIGHT = 50
+GAME_OVER_BOX_WIDTH = 150
+GAME_OVER_BOX = translate(Polygon([
+    (0, 0),
+    (0, GAME_OVER_BOX_HEIGHT),
+    (GAME_OVER_BOX_WIDTH, GAME_OVER_BOX_HEIGHT),
+    (GAME_OVER_BOX_WIDTH, 0),
+    (0, 0),
+]), xoff=SCREEN_WIDTH - GAME_OVER_BOX_WIDTH, yoff=SCREEN_HEIGHT - GAME_OVER_BOX_HEIGHT)
 
 @dataclasses.dataclass
 class GameOver:
@@ -264,6 +271,8 @@ class GameOver:
     top_highscores: list[Highscores]
     my_highscore: Highscores
     my_highscore_index: int
+    skip_to_intro_box: Polygon = GAME_OVER_BOX
+    in_skip_to_intro_box_since: datetime.timedelta | None = None
 
     def tick(
         self,
@@ -272,8 +281,16 @@ class GameOver:
         dt: datetime.timedelta,
         time_since_last_detection: datetime.timedelta,
     ):
-        # if total_dt > self.to_intro_at:
-        #     return Intro()
+        if total_dt > self.to_intro_at:
+            return Intro()
+        
+        if self.in_skip_to_intro_box_since is None:
+            for detection in pointer_detections.values():
+                if self.skip_to_intro_box.contains(Point(detection.screen_position)):
+                    self.in_skip_to_intro_box_since = total_dt
+        
+        if self.in_skip_to_intro_box_since is not None and total_dt - self.in_skip_to_intro_box_since > datetime.timedelta(seconds=2):
+            return Intro()
         return self
 
     def to_dict(self) -> dict:
@@ -301,7 +318,7 @@ START_BOX_BASE_POLYGON = Polygon([
 ])
 @dataclasses.dataclass
 class Intro:
-    playing_state: Playing = dataclasses.field(default_factory=lambda: Playing(team_name='', light_speed=DEMO_LIGHT_SPEED, demo_mode=True))
+    playing_state: Playing = dataclasses.field(default_factory=lambda: Playing(team_name='', light_speed=DEMO_LIGHT_SPEED, demo_mode=True).spawn_ball())
     pointer_detections: dict[str, Detection] = dataclasses.field(default_factory=lambda: {
         "red": Detection(
             screen_position=Vec(1024 / 2 - 300, 768 / 2),
@@ -341,17 +358,18 @@ class Intro:
         dt: datetime.timedelta,
         time_since_last_detection: datetime.timedelta,
     ):
-        for wall in segments(self.playing_state.boundary_shape):
-            velocity_line = LineString([self.playing_state.ball.position, self.playing_state.ball.position + self.playing_state.ball.velocity * 10_000])
-            intersection = wall.intersection(velocity_line)
-            if not intersection.is_empty:
-                pillar_diff = Vec(intersection.x, intersection.y) - self.playing_state.pillar.position
-                target_position = self.playing_state.pillar.position + pillar_diff.norm() * -1.5 * self.playing_state.pillar.forbidden_radius
-                color, _ = min(
-                    self.pointer_detections.items(),
-                    key=lambda item: item[1].screen_position.distance_to(target_position)
-                )
-                self.pointer_detections[color] = Detection(screen_position=target_position, camera_position=target_position, time=total_dt)
+        if self.playing_state.ball and self.playing_state.ball.velocity.magnitude < 300:
+            for wall in segments(self.playing_state.boundary_shape):
+                velocity_line = LineString([self.playing_state.ball.position, self.playing_state.ball.position + self.playing_state.ball.velocity * 10_000])
+                intersection = wall.intersection(velocity_line)
+                if not intersection.is_empty:
+                    pillar_diff = Vec(intersection.x, intersection.y) - self.playing_state.pillar.position
+                    target_position = self.playing_state.pillar.position + pillar_diff.norm() * -1.5 * self.playing_state.pillar.forbidden_radius
+                    color, _ = min(
+                        self.pointer_detections.items(),
+                        key=lambda item: item[1].screen_position.distance_to(target_position)
+                    )
+                    self.pointer_detections[color] = Detection(screen_position=target_position + Vec(3, 3), camera_position=target_position, time=total_dt)
 
         self.playing_state = self.playing_state.tick(
             pointer_detections=self.pointer_detections,
@@ -368,6 +386,18 @@ class Intro:
             self.team_name = generate_team_name()
 
         if self.in_red_start_box and self.in_green_start_box:
+            return Countdown(
+                start_at=total_dt + datetime.timedelta(seconds=5),
+                playing_state=dataclasses.replace(
+                    Playing(
+                        team_name=self.team_name,
+                        red_light=self.playing_state.red_light,
+                        green_light=self.playing_state.green_light,
+                        scores=[0]
+                    ),
+                    ball=None,
+                )
+            )
             return Playing(
                 team_name=self.team_name,
                 red_light=self.playing_state.red_light,

@@ -53,6 +53,7 @@ export function GameOver({
               textAlign: "left",
               marginRight: "auto",
               marginLeft: "auto",
+              backdropFilter: "brightness(50%) blur(10px)",
             }}
           >
             {state.top_highscores.slice(0, n).map((hs, i) => (
@@ -87,6 +88,9 @@ export function GameOver({
             )}
           </table>
         </div>
+        <span style={{ position: "absolute", bottom: 20, right: 20, textAlign: 'right' }}>
+          {Math.ceil(state.to_intro_at - time)}
+        </span>
       </div>
     </>
   );

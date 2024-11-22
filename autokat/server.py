@@ -81,11 +81,15 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
+        to_disconnect = []
         for connection in self.active_connections:
             try:
                 await connection.send_text(message)
             except:
+                to_disconnect.append(connection)
                 traceback.print_exc()
+        for connection in to_disconnect:
+            self.disconnect(connection)
 
 
 manager = ConnectionManager()

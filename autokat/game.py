@@ -322,12 +322,12 @@ class Intro:
     pointer_detections: dict[str, Detection] = dataclasses.field(default_factory=lambda: {
         "red": Detection(
             screen_position=Vec(1024 / 2 - 300, 768 / 2),
-            camera_position=Vec(1024 / 2 - 300, 768 / 2),
+            camera_positions=[Vec(1024 / 2 - 300, 768 / 2)],
             time=datetime.timedelta(0)
         ),
         "green": Detection(
             screen_position=Vec(1024 / 2 + 300, 768 / 2),
-            camera_position=Vec(1024 / 2 + 300, 768 / 2),
+            camera_positions=[Vec(1024 / 2 + 300, 768 / 2)],
             time=datetime.timedelta(0)
         ),
     })
@@ -369,7 +369,7 @@ class Intro:
                         self.pointer_detections.items(),
                         key=lambda item: item[1].screen_position.distance_to(target_position)
                     )
-                    self.pointer_detections[color] = Detection(screen_position=target_position + Vec(3, 3), camera_position=target_position, time=total_dt)
+                    self.pointer_detections[color] = Detection(screen_position=target_position + Vec(3, 3), camera_positions=[target_position], time=total_dt)
 
         self.playing_state = self.playing_state.tick(
             pointer_detections=self.pointer_detections,
@@ -398,11 +398,6 @@ class Intro:
                     ball=None,
                 )
             )
-            return Playing(
-                team_name=self.team_name,
-                red_light=self.playing_state.red_light,
-                green_light=self.playing_state.green_light,
-            )
 
         return self
 
@@ -422,16 +417,7 @@ class Game:
     def __init__(self, *, laser_tracker: MultiLaserTracker | DummyMultiLaserTracker, size=Vec(1024, 768)):
         self.size = size
         self.laser_tracker = laser_tracker
-        # self.state = Playing(size=size)
         self.state = Intro()
-        # self.state = GameOver(
-        #     scores=[1, 2, 3],
-        #     team_name="team1",
-        #     to_intro_at=datetime.timedelta(seconds=100000000),
-        #     top_highscores=Highscores().top(10),
-        #     my_highscore=Highscore(team_name="team1", score=100),
-        #     my_highscore_index=3,
-        # )
 
     def tick(self, total_dt: datetime.timedelta, dt: datetime.timedelta) -> Iterable[dict]:
         self.state = self.state.tick(

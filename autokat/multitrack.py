@@ -6,6 +6,7 @@ import json
 import math
 import os
 import random
+from statistics import median
 import sys
 from typing import Any, NamedTuple
 from typing_extensions import Self
@@ -185,9 +186,29 @@ class ProcessingConfigEditor:
 
 
 class Detection(NamedTuple):
-    camera_position: Vec
+    camera_positions: list[Vec]
     screen_position: Vec
     time: datetime.datetime
+
+    def _filter(self, camera_positions: list[Vec]) -> Self:
+        print(f"Filtering {camera_positions}")
+        centroid = sum(camera_positions, Vec(0, 0)) / len(camera_positions)
+        print(f"Centroid: {centroid}")
+        return min(camera_positions, key=lambda x: (x - centroid).magnitude)
+
+    @property
+    def camera_position(self) -> Vec:
+        return self._filter(self.camera_positions)
+    
+    def detect(self, camera_coords: Vec, calibration: Calibration) -> Self:
+        print(f"Detecting {camera_coords}")
+        camera_positions = (self.camera_positions + [camera_coords])[-3:]
+        screen_position = calibration.transform(self._filter(camera_positions))
+        return self._replace(
+            camera_positions=camera_positions,
+            screen_position=screen_position,
+            time=datetime.datetime.now(),
+        )
 
 class MultiLaserTracker:
     def __init__(
@@ -222,12 +243,19 @@ class MultiLaserTracker:
         
         self.last_detections = {
             laser_name: Detection(
-                camera_position=Vec(self.cam_width / 2, self.cam_height / 2),
+                camera_positions=[Vec(self.cam_width / 2, self.cam_height / 2)],
                 screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
                 time=datetime.datetime.now(),
             )
             for laser_name in self.processing_config.laser_configs.keys()
         }
+    
+    def detect(self, color: str, screen_position: Vec):
+        print("Detect", color, screen_position)
+        self.last_detections[color] = self.last_detections[color].detect(
+            camera_coords=self.calibration.transform(screen_position),
+            calibration=self.calibration,
+        )
 
     def update_calibration(
         self,
@@ -357,28 +385,14 @@ class MultiLaserTracker:
                         candidates.setdefault(laser_name, []).append((Vec(x, y), area, mean_hue, debug_color))
                     else:
                         unknowns.append((Vec(x, y), area, mean_hue, debug_color))
-                        # self.last_detections[laser_name] = Detection(
-                        #     camera_position=Vec(x, y),
-                        #     screen_position=self.calibration.transform(Vec(x, y)),
-                        #     time=datetime.datetime.now(),
-                        # )
-                        # cv2.putText(frame, f"{laser_name} {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
-                        # break
-                # else:
-                #     cv2.putText(frame, f"??? {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
-
+                      
             for laser_name, laser_candidates in candidates.items():
                 camera_position, area, mean_hue, debug_color = max(laser_candidates, key=lambda x: x[1])
-                self.last_detections[laser_name] = Detection(
-                    camera_position=camera_position,
-                    screen_position=self.calibration.transform(camera_position),
-                    time=datetime.datetime.now(),
-                )
+                self.detect(laser_name, camera_position)
                 cv2.putText(frame, f"{laser_name} {int(mean_hue)}", (int(camera_position.x), int(camera_position.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
 
             for camera_position, area, mean_hue, debug_color in unknowns:
                 cv2.putText(frame, f"??? {int(mean_hue)}", (int(camera_position.x), int(camera_position.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
-                # cv2.circle(frame, (int(x), int(y)), 10, debug_color, 2)
                 
             
             # cv2.imshow("Hue", hue)
@@ -393,12 +407,12 @@ class MultiLaserTracker:
 class DummyMultiLaserTracker:
     last_detections: dict[str, Detection] = dataclasses.field(default_factory=lambda: {
         "red": Detection(
-            camera_position=Vec(300, 300),
+            camera_positions=[Vec(300, 300)],
             screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
             time=datetime.datetime.now(),
         ),
         "green": Detection(
-            camera_position=Vec(500, 500),
+            camera_positions=[Vec(500, 500)],
             screen_position=Vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
             time=datetime.datetime.now(),
         ),
@@ -416,7 +430,7 @@ class DummyMultiLaserTracker:
     
     def detect(self, color: str, coords: Vec):
         self.last_detections[color] = Detection(
-            camera_position=coords,
+            camera_positions=[coords],
             screen_position=coords,
             time=datetime.datetime.now(),
         )

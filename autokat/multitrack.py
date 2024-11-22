@@ -7,7 +7,7 @@ import math
 import os
 import random
 import sys
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from typing_extensions import Self
 import cv2
 import numpy
@@ -337,11 +337,14 @@ class MultiLaserTracker:
 
             # loop over all detected blobs
             # the first blob is the background, so we skip it
+            candidates: dict[str, list[tuple[Vec, float, float, Any]]] = {}
+            unknowns: list[tuple[Vec, float, float, Any]] = []
             for i in range(1, num_labels):
                 x, y = centroids[i]
                 # get the average hue value of the blob
                 mean_mask = (labels == i).astype(numpy.uint8)
                 mean_hue = cv2.mean(hue, mask=mean_mask)[0]
+                area = stats[i, cv2.CC_STAT_AREA]
 
                 # convert the mean hue value to BGR to color the circle around the detected blob
                 hsv_pixel = numpy.array([[[int(mean_hue), 255, 128]]], numpy.uint8)
@@ -351,17 +354,31 @@ class MultiLaserTracker:
 
                 for laser_name, laser_config in self.processing_config.laser_configs.items():
                     if laser_config.hue_min <= mean_hue <= laser_config.hue_max:
-                        self.last_detections[laser_name] = Detection(
-                            camera_position=Vec(x, y),
-                            screen_position=self.calibration.transform(Vec(x, y)),
-                            time=datetime.datetime.now(),
-                        )
-                        cv2.putText(frame, f"{laser_name} {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
-                        break
-                else:
-                    cv2.putText(frame, f"??? {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
+                        candidates.setdefault(laser_name, []).append((Vec(x, y), area, mean_hue, debug_color))
+                    else:
+                        unknowns.append((Vec(x, y), area, mean_hue, debug_color))
+                        # self.last_detections[laser_name] = Detection(
+                        #     camera_position=Vec(x, y),
+                        #     screen_position=self.calibration.transform(Vec(x, y)),
+                        #     time=datetime.datetime.now(),
+                        # )
+                        # cv2.putText(frame, f"{laser_name} {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
+                        # break
+                # else:
+                #     cv2.putText(frame, f"??? {mean_hue}", (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
 
-                cv2.circle(frame, (int(x), int(y)), 10, debug_color, 2)
+            for laser_name, laser_candidates in candidates.items():
+                camera_position, area, mean_hue, debug_color = max(laser_candidates, key=lambda x: x[1])
+                self.last_detections[laser_name] = Detection(
+                    camera_position=camera_position,
+                    screen_position=self.calibration.transform(camera_position),
+                    time=datetime.datetime.now(),
+                )
+                cv2.putText(frame, f"{laser_name} {int(mean_hue)}", (int(camera_position.x), int(camera_position.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
+
+            for camera_position, area, mean_hue, debug_color in unknowns:
+                cv2.putText(frame, f"??? {int(mean_hue)}", (int(camera_position.x), int(camera_position.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, debug_color, 2)
+                # cv2.circle(frame, (int(x), int(y)), 10, debug_color, 2)
                 
             
             # cv2.imshow("Hue", hue)

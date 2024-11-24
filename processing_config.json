@@ -1,1 +1,1 @@
-{"val_min": 123, "val_max": 255, "laser_configs": {"red": {"hue_min": 129, "hue_max": 205}, "green": {"hue_min": 61, "hue_max": 84}}}
+{"val_min": 87, "val_max": 255, "laser_configs": {"red": {"hue_min": 129, "hue_max": 205}, "green": {"hue_min": 61, "hue_max": 84}}}

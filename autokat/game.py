@@ -87,7 +87,7 @@ class Playing:
             forbidden_radius=100,
         )
     )
-    ball_speed: float = 150
+    ball_speed: float = 100
     ball_radius: float = 30
     ball: Ball | None = None
     red_cone: Polygon = dataclasses.field(init=False)
@@ -424,15 +424,7 @@ class Game:
         self.laser_tracker = laser_tracker
         # self.state = Playing(size=size)
         self.state = Intro()
-        # self.state = GameOver(
-        #     scores=[1, 2, 3],
-        #     team_name="team1",
-        #     to_intro_at=datetime.timedelta(seconds=100000000),
-        #     top_highscores=Highscores().top(10),
-        #     my_highscore=Highscore(team_name="team1", score=100),
-        #     my_highscore_index=3,
-        # )
-
+        
     def tick(self, total_dt: datetime.timedelta, dt: datetime.timedelta) -> Iterable[dict]:
         self.state = self.state.tick(
             pointer_detections=self.laser_tracker.last_detections,

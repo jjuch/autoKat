@@ -110,6 +110,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 case {"type": "pointer", "position": [x, y], "color": color}:
                     dummy_tracker.detect(color, Vec(x, y))
                 case {"type": "calibration", "corner": corner}:
+                    print("cal", corner)
                     laser_tracker.update_calibration(**{corner: Vec(*laser_tracker.last_detections["red"].camera_position)})
 
     except WebSocketDisconnect:

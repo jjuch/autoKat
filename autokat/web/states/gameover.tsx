@@ -46,6 +46,8 @@ export function GameOver({
             filter: `hue-rotate(${hue}deg)`,
           }}
         ></div>
+        <img src="static/socrates-sunglasses.png" alt="socrates-sunglasses" style={{ position: "absolute", top: 30 + 5 * Math.sin(time * 15), left: 30, width: 200, height: 200, objectFit: 'contain'}} />
+        <img src="static/plato-sunglasses.png" alt="plato-sunglasses" style={{ position: "absolute", top: 30 + 5 * Math.sin(time * 15 + 2), right: 30, width: 200, height: 200, objectFit: 'contain'}} />
         <div style={{ marginBottom: 40, fontSize: 60 }}>GAME OVER</div>
         <div>
           <table
